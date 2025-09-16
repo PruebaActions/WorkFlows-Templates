@@ -1,0 +1,52 @@
+name: Pull Request Pipeline .NET + CodeQL
+
+on:
+  workflow_call:
+    inputs:
+      dotnet_version:
+        description: "Versión de .NET SDK"
+        required: true
+        type: string
+      project_paths:
+        description: "Lista JSON de proyectos a compilar"
+        required: true
+        type: string
+      codeql_languages:
+        description: "Lenguajes a analizar con CodeQL"
+        default: "csharp"
+        type: string
+
+jobs:
+  # 🔹 Build & Test con matrix
+  build-dotnet:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: ${{ fromJSON(inputs.project_paths) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: org/Workflows-Templates/.github/actions/dotnet-build-test@main
+        with:
+          dotnet_version: ${{ inputs.dotnet_version }}
+          project_path: ${{ matrix.project }}
+
+  # 🔹 CodeQL Analysis
+  codeql-analysis:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ inputs.codeql_languages }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3

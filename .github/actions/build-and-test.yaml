@@ -1,0 +1,24 @@
+name: "Dotnet Build & Test"
+description: "Restaura, compila y ejecuta tests en un proyecto .NET"
+
+inputs:
+  dotnet_version:
+    description: "Versión de .NET SDK"
+    required: true
+  project_path:
+    description: "Ruta al .csproj"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }}
+
+    - name: Restore, Build & Test
+      shell: bash
+      run: |
+        dotnet restore ${{ inputs.project_path }}
+        dotnet build ${{ inputs.project_path }} --configuration Release
+        dotnet test ${{ inputs.project_path }}
