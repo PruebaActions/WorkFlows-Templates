@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: PruebaActions/WorkFlows-Templates/actions/build-and-test@main
+      - uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
         with:
           image_name: ${{ inputs.image_name }}
           container_name: ${{ inputs.container_name }}
