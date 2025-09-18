@@ -1,24 +1,31 @@
-name: "Dotnet Build & Test"
-description: "Restaura, compila y ejecuta tests en un proyecto .NET"
+name: "Build & Run with Docker"
+description: "Construye la imagen Docker de la aplicación y la ejecuta en un contenedor para pruebas"
 
 inputs:
-  dotnet_version:
-    description: "Versión de .NET SDK"
+  image_name:
+    description: "Nombre de la imagen Docker"
     required: true
-  project_path:
-    description: "Ruta al .csproj"
+  container_name:
+    description: "Nombre del contenedor"
     required: true
+  dockerfile:
+    description: "Ruta al Dockerfile"
+    default: "./Dockerfile"
+  port:
+    description: "Puerto expuesto por la aplicación dentro del contenedor"
+    default: "8080"
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ inputs.dotnet_version }}
-
-    - name: Restore, Build & Test
+    - name: Build Docker image
       shell: bash
       run: |
-        dotnet restore ${{ inputs.project_path }}
-        dotnet build ${{ inputs.project_path }} --configuration Release
-        dotnet test ${{ inputs.project_path }}
+        echo "🚀 Construyendo imagen Docker..."
+        docker build -t ${{ inputs.image_name }} -f ${{ inputs.dockerfile }} .
+
+    - name: Run container
+      shell: bash
+      run: |
+        echo "🏃 Levantando contenedor..."
+        docker run -d -p ${{ inputs.port }}:${{ inputs.port }} --name ${{ inputs.container_name }} ${{ inputs.image_name }}

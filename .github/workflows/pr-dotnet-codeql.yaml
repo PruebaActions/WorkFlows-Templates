@@ -1,15 +1,23 @@
-name: Pull Request Pipeline .NET + CodeQL
+name: Pull Request Pipeline .NET + CodeQL + OWASP ZAP
 
 on:
   workflow_call:
     inputs:
-      dotnet_version:
-        description: "Versión de .NET SDK"
+      image_name:
+        description: "Nombre de la imagen Docker"
         required: true
         type: string
-      project_paths:
-        description: "Lista JSON de proyectos a compilar"
+      container_name:
+        description: "Nombre del contenedor Docker"
         required: true
+        type: string
+      dockerfile:
+        description: "Ruta al Dockerfile"
+        default: "./Dockerfile"
+        type: string
+      port:
+        description: "Puerto expuesto por la aplicación"
+        default: "8080"
         type: string
       codeql_languages:
         description: "Lenguajes a analizar con CodeQL"
@@ -17,36 +25,43 @@ on:
         type: string
 
 jobs:
-  # 🔹 Build & Test con matrix
-  build-dotnet:
+  # 🔹 Build & Run App en Docker
+  build-and-test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        project: ${{ fromJSON(inputs.project_paths) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: PruebaActions/Workflows-Templates/.github/actions/build-and-test@main
+      - uses: PruebaActions/WorkFlows-Templates/actions/build-and-test@main
         with:
-          dotnet_version: ${{ inputs.dotnet_version }}
-          project_path: ${{ matrix.project }}
+          image_name: ${{ inputs.image_name }}
+          container_name: ${{ inputs.container_name }}
+          dockerfile: ${{ inputs.dockerfile }}
+          port: ${{ inputs.port }}
 
-  # 🔹 CodeQL Analysis
+  # 🔹 CodeQL Analysis (SAST)
   codeql-analysis:
+    runs-on: ubuntu-latest
+    needs: build-and-test
     permissions:
       actions: read
       contents: read
       security-events: write
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ inputs.codeql_languages }}
-
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
-
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+
+  # 🔹 OWASP ZAP Scan (DAST)
+  dast-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.9.0
+        with:
+          target: "http://localhost:${{ inputs.port }}"
