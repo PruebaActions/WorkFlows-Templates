@@ -65,4 +65,4 @@ jobs:
         uses: zaproxy/action-baseline@v0.9.0
         with:
           target: "http://localhost:${{ inputs.port }}"
-          artifact_name: 'zap-scan-report'
+          artifact_name: 'drop'
