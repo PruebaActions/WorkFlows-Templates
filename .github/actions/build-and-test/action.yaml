@@ -19,13 +19,11 @@ runs:
   using: "composite"
   steps:
     - name: Build Docker image
-      shell: bash
+      shell: powershell
       run: |
-        echo "🚀 Construyendo imagen Docker..."
         docker build -t ${{ inputs.image_name }} -f ${{ inputs.dockerfile }} .
 
     - name: Run container
-      shell: bash
+      shell: powershell
       run: |
-        echo "🏃 Levantando contenedor..."
         docker run -d -p ${{ inputs.port }}:${{ inputs.port }} --name ${{ inputs.container_name }} ${{ inputs.image_name }}
