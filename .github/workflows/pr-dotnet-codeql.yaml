@@ -27,7 +27,7 @@ on:
 jobs:
   # 🔹 Build & Run App en Docker
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
@@ -39,7 +39,7 @@ jobs:
 
   # 🔹 CodeQL Analysis (SAST)
   codeql-analysis:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: build-and-test
     permissions:
       actions: read
@@ -58,7 +58,7 @@ jobs:
 
   # 🔹 OWASP ZAP Scan (DAST)
   dast-scan:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: build-and-test
     steps:
       - name: Run OWASP ZAP Baseline Scan
