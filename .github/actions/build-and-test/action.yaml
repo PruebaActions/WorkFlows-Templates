@@ -21,6 +21,9 @@ runs:
     - name: Build Docker image
       shell: bash
       run: |
+        whoami
+        id
+        groups
         docker build -t ${{ inputs.image_name }} -f ${{ inputs.dockerfile }} .
 
     - name: Run container
