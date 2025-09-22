@@ -1,0 +1,32 @@
+name: "Build & Run with Docker"
+description: "Construye la imagen Docker de la aplicación y la ejecuta en un contenedor para pruebas"
+
+inputs:
+  image_name:
+    description: "Nombre de la imagen Docker"
+    required: true
+  container_name:
+    description: "Nombre del contenedor"
+    required: true
+  dockerfile:
+    description: "Ruta al Dockerfile"
+    default: "./Dockerfile"
+  container_port:
+    description: "Puerto expuesto por la aplicación dentro del contenedor"
+    required: true
+  host_port:
+    description: "Puerto en la PC Host que se mapeara al container"
+    default: "4200"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build Docker image
+      shell: bash
+      run: |
+        docker build -t ${{ inputs.image_name }} -f ${{ inputs.dockerfile }} .
+
+    - name: Run container
+      shell: bash
+      run: |
+        docker run -d -p ${{ inputs.host_port }}:${{ inputs.container_port }} --name ${{ inputs.container_name }} ${{ inputs.image_name }}

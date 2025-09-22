@@ -1,32 +1,30 @@
-name: "Build & Run with Docker"
-description: "Construye la imagen Docker de la aplicación y la ejecuta en un contenedor para pruebas"
+name: "Build & Test app"
+description: "Construye la aplicación y testea"
 
 inputs:
-  image_name:
-    description: "Nombre de la imagen Docker"
+  has_tests:
+    description: "Confirmar si la app tiene tests para ejecutarlos"
     required: true
-  container_name:
-    description: "Nombre del contenedor"
+    type: bool
+  project_path:
+    description: "Ruta al .csproj"
     required: true
-  dockerfile:
-    description: "Ruta al Dockerfile"
-    default: "./Dockerfile"
-  container_port:
-    description: "Puerto expuesto por la aplicación dentro del contenedor"
-    default: "8080"
-  host_port:
-    description: "Puerto en la PC Host que se mapeara al container"
-    default: "4200"
 
 runs:
   using: "composite"
   steps:
-    - name: Build Docker image
+    - name: Restore app
       shell: bash
       run: |
-        docker build -t ${{ inputs.image_name }} -f ${{ inputs.dockerfile }} .
+        dotnet restore ${{ inputs.project_path }}
 
-    - name: Run container
+    - name: Build the app
       shell: bash
       run: |
-        docker run -d -p ${{ inputs.host_port }}:${{ inputs.container_port }} --name ${{ inputs.container_name }} ${{ inputs.image_name }}
+        dotnet build ${{ inputs.project_path }} --configuration Release
+
+    - name: Test the app
+      if: ${{ inputs.has_tests == true }}
+      shell: bash
+      run: |
+        dotnet test ${{ inputs.project_path }}

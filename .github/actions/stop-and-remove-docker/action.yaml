@@ -1,0 +1,23 @@
+name: "Stop and remove container running the app"
+description: "Detiene y borra el container corriendo la aplicación"
+
+inputs:
+  image_name:
+    description: "Nombre de la imagen Docker"
+    required: true
+  container_name:
+    description: "Nombre del contenedor"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Stop Docker container
+      shell: bash
+      run: |
+        docker stop ${{ inputs.container_name }}
+
+    - name: Delete container
+      shell: bash
+      run: |
+        docker rm ${{ inputs.container_name }}
