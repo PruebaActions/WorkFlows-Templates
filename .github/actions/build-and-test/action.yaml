@@ -11,9 +11,12 @@ inputs:
   dockerfile:
     description: "Ruta al Dockerfile"
     default: "./Dockerfile"
-  port:
+  container_port:
     description: "Puerto expuesto por la aplicación dentro del contenedor"
     default: "8080"
+  host_port:
+    description: "Puerto en la PC Host que se mapeara al container"
+    default: "4200"
 
 runs:
   using: "composite"
@@ -21,12 +24,9 @@ runs:
     - name: Build Docker image
       shell: bash
       run: |
-        whoami
-        id
-        groups
         docker build -t ${{ inputs.image_name }} -f ${{ inputs.dockerfile }} .
 
     - name: Run container
       shell: bash
       run: |
-        docker run -d -p ${{ inputs.port }}:${{ inputs.port }} --name ${{ inputs.container_name }} ${{ inputs.image_name }}
+        docker run -d -p ${{ inputs.host_port }}:${{ inputs.container_port }} --name ${{ inputs.container_name }} ${{ inputs.image_name }}
