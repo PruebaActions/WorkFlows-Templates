@@ -39,7 +39,8 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: DAST
+    runs-on: 
+      group: DAST
     strategy:
       matrix:
         project: ${{ fromJSON(inputs.project_paths) }}
@@ -52,7 +53,8 @@ jobs:
 
   # 🔹 Build & Run App en Docker
   docker-set-up:
-    runs-on: DAST
+    runs-on:
+      group: DAST
     steps:
       - uses: actions/checkout@v4
       - uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
@@ -65,7 +67,8 @@ jobs:
 
   # 🔹 CodeQL Analysis (SAST)
  # codeql-analysis:
-  #  runs-on: self-hosted
+  #  runs-on:
+   #     group: DAST
   #  needs: docker-set-up
    # permissions:
    #   actions: read
@@ -84,7 +87,8 @@ jobs:
 
   # 🔹 OWASP ZAP Scan (DAST)
   dast-scan:
-    runs-on: DAST
+    runs-on:
+      group: DAST
     needs: docker-set-up
     steps:
       - name: Run OWASP ZAP Baseline Scan
@@ -94,7 +98,8 @@ jobs:
           artifact_name: 'drop'
 
   delete-container:
-    runs-on: DAST
+    runs-on:
+      group: DAST
     needs: dast-scan
     steps:
       - uses: actions/checkout@v4
