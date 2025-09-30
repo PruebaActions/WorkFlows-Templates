@@ -13,11 +13,11 @@ runs:
   using: "composite"
   steps:
     - name: Stop Docker container
-      shell: bash
+      shell: powershell
       run: |
         docker stop ${{ inputs.container_name }}
 
     - name: Delete container
-      shell: bash
+      shell: powershell
       run: |
         docker rm ${{ inputs.container_name }}
