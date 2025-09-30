@@ -14,17 +14,17 @@ runs:
   using: "composite"
   steps:
     - name: Restore app
-      shell: bash
+      shell: powershell
       run: |
         dotnet restore ${{ inputs.project_path }}
 
     - name: Build the app
-      shell: bash
+      shell: powershell
       run: |
         dotnet build ${{ inputs.project_path }} --configuration Release
 
     - name: Test the app
       if: ${{ inputs.has_tests == true }}
-      shell: bash
+      shell: powershell
       run: |
         dotnet test ${{ inputs.project_path }}
