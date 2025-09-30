@@ -13,8 +13,8 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup NuGet
-      uses: NuGet/setup-nuget@v1.2.0
+    #- name: Setup NuGet
+     # uses: NuGet/setup-nuget@v1.2.0
       
     - name: Restore NuGet packages
       shell: powershell
