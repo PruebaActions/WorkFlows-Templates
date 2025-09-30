@@ -39,7 +39,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: self-hosted
+    runs-on: DAST
     strategy:
       matrix:
         project: ${{ fromJSON(inputs.project_paths) }}
