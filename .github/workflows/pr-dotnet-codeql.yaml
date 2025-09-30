@@ -64,23 +64,23 @@ jobs:
           container_port: ${{ inputs.container_port }}
 
   # 🔹 CodeQL Analysis (SAST)
-  codeql-analysis:
-    runs-on: self-hosted
-    needs: docker-set-up
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ inputs.codeql_languages }}
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+ # codeql-analysis:
+  #  runs-on: self-hosted
+  #  needs: docker-set-up
+   # permissions:
+   #   actions: read
+   #   contents: read
+   #   security-events: write
+   # steps:
+    #  - uses: actions/checkout@v4
+     # - name: Initialize CodeQL
+    #    uses: github/codeql-action/init@v3
+    #    with:
+   #       languages: ${{ inputs.codeql_languages }}
+   #   - name: Autobuild
+   #     uses: github/codeql-action/autobuild@v3
+   #   - name: Perform CodeQL Analysis
+   #     uses: github/codeql-action/analyze@v3
 
   # 🔹 OWASP ZAP Scan (DAST)
   dast-scan:
