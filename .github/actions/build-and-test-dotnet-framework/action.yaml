@@ -1,0 +1,30 @@
+name: "Build & Test app"
+description: "Construye la aplicación y testea con MSBuild para .NET Framework"
+
+inputs:
+  has_tests:
+    description: "Confirmar si la app tiene tests para ejecutarlos"
+    required: true
+    type: bool
+  solution_path:
+    description: "Ruta al .sln de la solución"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore NuGet packages
+      shell: pwsh
+      run: |
+        nuget restore ${{ inputs.solution_path }}
+
+    - name: Build the app with MSBuild
+      shell: pwsh
+      run: |
+        msbuild ${{ inputs.solution_path }} /p:Configuration=Release
+
+    - name: Run tests
+      if: ${{ inputs.has_tests == true }}
+      shell: pwsh
+      run: |
+        vstest.console.exe **\*test*.dll

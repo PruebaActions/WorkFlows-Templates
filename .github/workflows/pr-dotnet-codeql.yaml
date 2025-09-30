@@ -46,7 +46,7 @@ jobs:
         project: ${{ fromJSON(inputs.project_paths) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: PruebaActions/Workflows-Templates/.github/actions/build-and-test@main
+      - uses: PruebaActions/Workflows-Templates/.github/actions/build-and-test-dotnet-framework@main
         with:
           project_path: ${{ matrix.project }}
           has_tests: ${{ inputs.has_tests }}
