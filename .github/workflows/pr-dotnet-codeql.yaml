@@ -52,7 +52,7 @@ jobs:
 
   # 🔹 Build & Run App en Docker
   docker-set-up:
-    runs-on: self-hosted
+    runs-on: DAST
     steps:
       - uses: actions/checkout@v4
       - uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
@@ -84,7 +84,7 @@ jobs:
 
   # 🔹 OWASP ZAP Scan (DAST)
   dast-scan:
-    runs-on: self-hosted
+    runs-on: DAST
     needs: docker-set-up
     steps:
       - name: Run OWASP ZAP Baseline Scan
@@ -94,7 +94,7 @@ jobs:
           artifact_name: 'drop'
 
   delete-container:
-    runs-on: self-hosted
+    runs-on: DAST
     needs: dast-scan
     steps:
       - uses: actions/checkout@v4
