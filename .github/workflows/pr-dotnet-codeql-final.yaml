@@ -123,11 +123,21 @@ jobs:
       group: DAST
     needs: docker-set-up
     steps:
-      - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.14.0
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run OWASP ZAP Baseline Scan via Docker in WSL
+        run: |
+          wsl -d Ubuntu -- bash -c "
+            docker run --rm -v \$(pwd):/zap/wrk/:rw \
+              zaproxy/zap-stable zap-baseline.py \
+              -t http:host.docker.internal:4200 \
+              -r zap-report.html
+          "
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
         with:
-          target: "http://localhost:${{ inputs.host_port }}"
-          artifact_name: 'drop'
+          name: zap-report
+          path: zap-report.html
 
   delete-container:
     runs-on:
