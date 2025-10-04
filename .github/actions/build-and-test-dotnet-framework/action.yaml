@@ -13,18 +13,21 @@ inputs:
 runs:
   using: "composite"
   steps:
+    #- name: Setup NuGet
+     # uses: NuGet/setup-nuget@v1.2.0
+      
     - name: Restore NuGet packages
-      shell: pwsh
+      shell: powershell
       run: |
         nuget restore ${{ inputs.solution_path }}
 
     - name: Build the app with MSBuild
-      shell: pwsh
+      shell: powershell
       run: |
         msbuild ${{ inputs.solution_path }} /p:Configuration=Release
 
     - name: Run tests
       if: ${{ inputs.has_tests == true }}
-      shell: pwsh
+      shell: powershell
       run: |
         vstest.console.exe **\*test*.dll

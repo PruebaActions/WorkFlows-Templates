@@ -38,28 +38,50 @@ on:
         required: true
 
 jobs:
-
-  test-switch:
+# Detectar tipo de proyecto (Si es .NET Framework o no)
+  detect-framework:
     runs-on:
-      group: DAST
+      group: Code-runners
+    strategy:
+      matrix:
+        project: ${{ fromJSON(inputs.project_paths) }}
+    outputs:
+      isFramework: ${{ steps.detect.outputs.isFramework }}
     steps:
       - uses: actions/checkout@v4
-      - uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
-        with:
-          isFramework: true
-
+      - id: detect
+        shell: powershell
+        run: |
+          $proj = Get-Content "${{ matrix.project }}"
+          if ($proj -match "<TargetFrameworkVersion>|packages.config") {
+            echo "isFramework=true" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "isFramework=true" >> $env:GITHUB_OUTPUT
+          }
+  #Build and Test
   build-and-test:
     runs-on: 
       group: DAST
+    needs: detect-framework
     strategy:
       matrix:
         project: ${{ fromJSON(inputs.project_paths) }}
     steps:
       - uses: actions/checkout@v4
+      - name: Build .NET Framework app
+        if: needs.detect-framework.outputs.isFramework == 'true'
       - uses: PruebaActions/Workflows-Templates/.github/actions/build-and-test-dotnet-framework@main
         with:
           solution_path: ${{ matrix.project }}
           has_tests: ${{ inputs.has_tests }}
+
+          
+      - name: Build .NET Core/Modern app
+        if: needs.detect-framework.outputs.isFramework == 'false'
+        uses: PruebaActions/Workflows-Templates/.github/actions/build-and-test@main
+        with:
+          project_path: ${{ matrix.project }}
+          has_tests: ${{ inputs.has_test }}
 
   # 🔹 Build & Run App en Docker
   docker-set-up:
@@ -101,11 +123,21 @@ jobs:
       group: DAST
     needs: docker-set-up
     steps:
-      - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.14.0
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run OWASP ZAP Baseline Scan via Docker in WSL
+        run: |
+          wsl -d Ubuntu -- bash -c "
+            docker run --rm -v \$(pwd):/zap/wrk/:rw \
+              zaproxy/zap-stable zap-baseline.py \
+              -t http:host.docker.internal:4200 \
+              -r zap-report.html
+          "
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
         with:
-          target: "http://localhost:${{ inputs.host_port }}"
-          artifact_name: 'drop'
+          name: zap-report
+          path: zap-report.html
 
   delete-container:
     runs-on:
