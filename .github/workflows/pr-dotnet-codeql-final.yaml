@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Check if any app requires Windows containers
         id: check
-        shell: pwsh
+        shell: powershell
         run: |
           $targets = '${{ inputs.docker_targets }}' | ConvertFrom-Json
           $frameworkExists = $targets | Where-Object { $_.isFramework -eq "true" }
