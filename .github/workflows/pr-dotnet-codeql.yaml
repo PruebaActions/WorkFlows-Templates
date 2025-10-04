@@ -38,6 +38,16 @@ on:
         required: true
 
 jobs:
+
+  test-switch:
+    runs-on:
+      group: DAST
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
+        with:
+          isFramework: true
+
   build-and-test:
     runs-on: 
       group: DAST

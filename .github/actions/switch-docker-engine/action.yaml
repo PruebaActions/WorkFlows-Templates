@@ -1,0 +1,54 @@
+name: "Switch Docker Engine"
+description: "Cambia entre Linux y Windows containers solo si es necesario, y espera a que Docker Engine esté listo"
+
+inputs:
+  isFramework:
+    description: "true para usar Windows containers, false para usar Linux containers"
+    required: true
+    type: boolean
+
+runs:
+  using: "composite"
+  steps:
+    - name: Detect current Docker mode
+      id: detect
+      shell: powershell
+      run: |
+        $current = docker info --format '{{.OSType}}'
+        echo "current=$current" >> $env:GITHUB_OUTPUT
+        Write-Host "Current Docker mode: $current"
+
+    - name: Switch Docker Engine
+      if: (inputs.isFramework == true && steps.detect.outputs.current != 'windows') || 
+          (inputs.isFramework == false && steps.detect.outputs.current != 'linux')
+      shell: powershell
+      run: |
+        if ("${{ inputs.isFramework }}" -eq "true") {
+          Write-Host "🔄 Switching to Windows containers..."
+          & "C:\Program Files\Docker\Docker\DockerCli.exe" -SwitchWindowsEngine
+        } else {
+          Write-Host "🔄 Switching to Linux containers..."
+          & "C:\Program Files\Docker\Docker\DockerCli.exe" -SwitchLinuxEngine
+        }
+
+    - name: Wait for Docker Engine readiness
+      shell: powershell
+      run: |
+        $retries = 0
+        $maxRetries = 30
+        do {
+          try {
+            docker info > $null 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "✅ Docker Engine is ready!"
+              exit 0
+            }
+          } catch {
+            Write-Host "⏳ Waiting for Docker Engine..."
+          }
+          Start-Sleep -Seconds 2
+          $retries++
+        } while ($retries -lt $maxRetries)
+
+        Write-Error "❌ Docker Engine did not become ready after $maxRetries retries"
+        exit 1
