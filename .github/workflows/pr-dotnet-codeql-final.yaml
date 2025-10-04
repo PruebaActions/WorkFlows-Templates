@@ -27,7 +27,8 @@ on:
 jobs:
   # 🧠 1️⃣ Detectar si alguna app usa .NET Framework
   detect-framework:
-    runs-on: windows-latest
+    runs-on: 
+      group: DAST
     outputs:
       hasFramework: ${{ steps.check.outputs.hasFramework }}
     steps:
@@ -47,7 +48,7 @@ jobs:
   # 🏗 2️⃣ Build and Test (para múltiples proyectos)
   build-and-test:
     runs-on:
-      group: Code-runners
+      group: DAST
     needs: detect-framework
     strategy:
       matrix:
@@ -71,7 +72,8 @@ jobs:
 
   # 🐋 3️⃣ Build & Run Docker containers
   docker-set-up:
-    runs-on: windows-latest
+    runs-on: 
+      group: DAST
     needs: [detect-framework, build-and-test]
     strategy:
       matrix:
@@ -97,7 +99,7 @@ jobs:
   # 🧬 4️⃣ CodeQL Analysis (SAST)
   codeql-analysis:
     runs-on:
-      group: Code-runners
+      group: DAST
     needs: docker-set-up
     strategy:
       matrix:
@@ -120,7 +122,7 @@ jobs:
   # 🧪 5️⃣ OWASP ZAP Scan (DAST)
   dast-scan:
     runs-on:
-      group: DAST-runners
+      group: DAST
     needs: docker-set-up
     strategy:
       matrix:
@@ -134,7 +136,8 @@ jobs:
 
   # 🧹 6️⃣ Cleanup y retorno a Linux containers
   delete-container:
-    runs-on: windows-latest
+    runs-on: 
+      group: DAST
     needs: dast-scan
     strategy:
       matrix:
