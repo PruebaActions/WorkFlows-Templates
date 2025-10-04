@@ -58,14 +58,14 @@ jobs:
 
       - name: Build .NET Framework app
         if: matrix.project.isFramework == 'true'
-        uses: PruebaActions/WorkFlows_Templates/.github/actions/build-and-test-dotnet-framework@main
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
         with:
           solution_path: ${{ matrix.project.path }}
-          has_tests: ${{ inputs.has_tests }}
+          has_tests: ${{ inputs.has-tests }}
 
       - name: Build .NET Core/Modern app
         if: matrix.project.isFramework == 'false'
-        uses: PruebaActions/WorkFlows_Templates/.github/actions/build-and-test@main
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
         with:
           project_path: ${{ matrix.project.path }}
           has_tests: ${{ inputs.has_tests }}
@@ -83,12 +83,12 @@ jobs:
 
       # Cambia el engine si se requiere Windows
       - name: Switch Docker Engine if needed
-        uses: PruebaActions/WorkFlows_Templates/.github/actions/switch-docker-engine@main
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
         with:
           isFramework: ${{ needs.detect-framework.outputs.hasFramework }}
 
       - name: Build & Run Docker
-        uses: PruebaActions/WorkFlows_Templates/.github/actions/docker-set-up@main
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
         with:
           image_name: ${{ matrix.target.image_name }}
           container_name: ${{ matrix.target.container_name }}
@@ -144,12 +144,12 @@ jobs:
         target: ${{ fromJSON(inputs.docker_targets) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: PruebaActions/WorkFlows_Templates/.github/actions/stop-and-remove-docker@main
+      - uses: PruebaActions/WorkFlows-Templates/.github/actions/stop-and-remove-docker@main
         with:
           image_name: ${{ matrix.target.image_name }}
           container_name: ${{ matrix.target.container_name }}
 
       - name: Switch back to Linux Engine (always)
-        uses: PruebaActions/WorkFlows_Templates/.github/actions/switch-docker-engine@main
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
         with:
           isFramework: 'false'
