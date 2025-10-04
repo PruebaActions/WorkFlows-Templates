@@ -39,10 +39,9 @@ on:
       isFramework:
         description: "true si el proyecto es .NET Framework, false si es .NET Core/5+/6+"
         required: true
-        type: boolean
+        type: string
 
 jobs:
-
   test-switch:
     runs-on:
       group: DAST

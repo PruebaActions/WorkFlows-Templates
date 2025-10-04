@@ -5,7 +5,7 @@ inputs:
   isFramework:
     description: "true para usar Windows containers, false para usar Linux containers"
     required: true
-    type: boolean
+    type: string
 
 runs:
   using: "composite"
@@ -21,8 +21,8 @@ runs:
 
     - name: Switch Docker Engine
       if: | 
-          (inputs.isFramework == true && env.CURRENT != 'windows') || 
-          (inputs.isFramework == false && env.CURRENT != 'linux')
+          (inputs.isFramework == 'true' && env.CURRENT != 'windows') || 
+          (inputs.isFramework == 'false' && env.CURRENT != 'linux')
       shell: powershell
       run: |
         if ("${{ inputs.isFramework }}" -eq "true") {
