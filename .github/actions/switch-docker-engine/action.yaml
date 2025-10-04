@@ -15,13 +15,13 @@ runs:
       shell: powershell
       run: |
         $current = docker info --format '{{.OSType}}'
-        echo "current=$current" >> $env:GITHUB_ENV
+        echo "CURRENT=$current" >> $env:GITHUB_ENV
         Write-Host "Current Docker mode: $current"
       
 
     - name: Switch Docker Engine
-      if: (inputs.isFramework == true && env.CURRENT == 'windows') || 
-          (inputs.isFramework == false && env.CURRENT == 'linux')
+      if: (inputs.isFramework == true && env.CURRENT != 'windows') || 
+          (inputs.isFramework == false && env.CURRENT != 'linux')
       shell: powershell
       run: |
         if ("${{ inputs.isFramework }}" -eq "true") {
