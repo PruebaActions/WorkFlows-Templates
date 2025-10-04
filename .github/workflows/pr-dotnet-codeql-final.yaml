@@ -36,7 +36,7 @@ jobs:
         shell: pwsh
         run: |
           $targets = '${{ inputs.docker_targets }}' | ConvertFrom-Json
-          $frameworkExists = $targets | Where-Object { $_.isFramework -eq $true }
+          $frameworkExists = $targets | Where-Object { $_.isFramework -eq "true" }
           if ($frameworkExists) {
             Write-Host "At least one .NET Framework app found."
             echo "hasFramework=true" >> $env:GITHUB_OUTPUT
