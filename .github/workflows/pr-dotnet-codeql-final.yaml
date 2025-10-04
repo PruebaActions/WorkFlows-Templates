@@ -56,14 +56,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build .NET Framework app
-        if: matrix.project.isFramework == true
+        if: matrix.project.isFramework == "true"
         uses: PruebaActions/WorkFlows_Templates/.github/actions/build-and-test-dotnet-framework@Production
         with:
           solution_path: ${{ matrix.project.path }}
           has_tests: ${{ inputs.has_tests }}
 
       - name: Build .NET Core/Modern app
-        if: matrix.project.isFramework == false
+        if: matrix.project.isFramework == "false"
         uses: PruebaActions/WorkFlows_Templates/.github/actions/build-and-test@Production
         with:
           project_path: ${{ matrix.project.path }}
@@ -149,4 +149,4 @@ jobs:
       - name: Switch back to Linux Engine (always)
         uses: PruebaActions/WorkFlows_Templates/.github/actions/switch-docker-engine@Production
         with:
-          isFramework: false
+          isFramework: "false"
