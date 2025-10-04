@@ -20,7 +20,7 @@ runs:
 
     - name: Switch Docker Engine
       if: (inputs.isFramework == true && steps.detect.outputs.current != 'windows') || 
-          (inputs.isFramework == false && steps.detect.outputs.current != 'linux')
+          (inputs.isFramework == false && steps.detect.outputs.current != 'windows')
       shell: powershell
       run: |
         if ("${{ inputs.isFramework }}" -eq "true") {
