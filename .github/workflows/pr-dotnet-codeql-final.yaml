@@ -3,149 +3,150 @@ name: Pull Request Pipeline .NET + CodeQL + OWASP ZAP
 on:
   workflow_call:
     inputs:
-      image_name:
-        description: "Nombre de la imagen Docker"
-        required: true
-        type: string
-      container_name:
-        description: "Nombre del contenedor Docker"
-        required: true
-        type: string
-      dockerfile:
-        description: "Ruta al Dockerfile"
-        default: "./Dockerfile"
-        required: true
-        type: string
-      container_port:
-        description: "Puerto expuesto por la aplicación"
-        default: "8080"
-        type: string
-      host_port:
-        description: "Puerto en la HOST machine"
-        type: string
-        default: "4200"
-      codeql_languages:
+      codeql_language:
         description: "Lenguajes a analizar con CodeQL"
         default: "csharp"
         type: string
+
       project_paths:
-        description: "Lista JSON de proyectos a compilar"
+        description: "Lista JSON de proyectos a compilar (path, isFramework)"
         required: true
         type: string
-      has_tests: 
-        description: "Confirmacion de si la app tiene tests"
+
+      has_tests:
+        description: "Confirmación de si la app tiene tests"
         type: boolean
         required: true
 
+      docker_targets:
+        description: "Lista JSON de targets Docker (image_name, container_name, dockerfile, host_port, container_port, isFramework)"
+        required: true
+        type: string
+
+
 jobs:
-# Detectar tipo de proyecto (Si es .NET Framework o no)
+  # 🧠 1️⃣ Detectar si alguna app usa .NET Framework
   detect-framework:
+    runs-on: windows-latest
+    outputs:
+      hasFramework: ${{ steps.check.outputs.hasFramework }}
+    steps:
+      - name: Check if any app requires Windows containers
+        id: check
+        shell: pwsh
+        run: |
+          $targets = '${{ inputs.docker_targets }}' | ConvertFrom-Json
+          $frameworkExists = $targets | Where-Object { $_.isFramework -eq $true }
+          if ($frameworkExists) {
+            Write-Host "At least one .NET Framework app found."
+            echo "hasFramework=true" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "hasFramework=false" >> $env:GITHUB_OUTPUT
+          }
+
+  # 🏗 2️⃣ Build and Test (para múltiples proyectos)
+  build-and-test:
     runs-on:
       group: Code-runners
-    strategy:
-      matrix:
-        project: ${{ fromJSON(inputs.project_paths) }}
-    outputs:
-      isFramework: ${{ steps.detect.outputs.isFramework }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: detect
-        shell: powershell
-        run: |
-          $proj = Get-Content "${{ matrix.project }}"
-          if ($proj -match "<TargetFrameworkVersion>|packages.config") {
-            echo "isFramework=true" >> $env:GITHUB_OUTPUT
-          } else {
-            echo "isFramework=true" >> $env:GITHUB_OUTPUT
-          }
-  #Build and Test
-  build-and-test:
-    runs-on: 
-      group: DAST
     needs: detect-framework
     strategy:
       matrix:
         project: ${{ fromJSON(inputs.project_paths) }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Build .NET Framework app
-        if: needs.detect-framework.outputs.isFramework == 'true'
-      - uses: PruebaActions/Workflows-Templates/.github/actions/build-and-test-dotnet-framework@main
+        if: matrix.project.isFramework == true
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/build-and-test-dotnet-framework@Production
         with:
-          solution_path: ${{ matrix.project }}
+          solution_path: ${{ matrix.project.path }}
           has_tests: ${{ inputs.has_tests }}
 
-          
       - name: Build .NET Core/Modern app
-        if: needs.detect-framework.outputs.isFramework == 'false'
-        uses: PruebaActions/Workflows-Templates/.github/actions/build-and-test@main
+        if: matrix.project.isFramework == false
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/build-and-test@Production
         with:
-          project_path: ${{ matrix.project }}
-          has_tests: ${{ inputs.has_test }}
+          project_path: ${{ matrix.project.path }}
+          has_tests: ${{ inputs.has_tests }}
 
-  # 🔹 Build & Run App en Docker
+  # 🐋 3️⃣ Build & Run Docker containers
   docker-set-up:
-    runs-on:
-      group: DAST
+    runs-on: windows-latest
+    needs: [detect-framework, build-and-test]
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.docker_targets) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
+
+      # Cambia el engine si se requiere Windows
+      - name: Switch Docker Engine if needed
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/switch-docker-engine@Production
         with:
-          image_name: ${{ inputs.image_name }}
-          container_name: ${{ inputs.container_name }}
-          dockerfile: ${{ inputs.dockerfile }}
-          host_port: ${{ inputs.host_port }}
-          container_port: ${{ inputs.container_port }}
+          isFramework: ${{ needs.detect-framework.outputs.hasFramework }}
 
-  # 🔹 CodeQL Analysis (SAST)
- # codeql-analysis:
-  #  runs-on:
-   #     group: DAST
-  #  needs: docker-set-up
-   # permissions:
-   #   actions: read
-   #   contents: read
-   #   security-events: write
-   # steps:
-    #  - uses: actions/checkout@v4
-     # - name: Initialize CodeQL
-    #    uses: github/codeql-action/init@v3
-    #    with:
-   #       languages: ${{ inputs.codeql_languages }}
-   #   - name: Autobuild
-   #     uses: github/codeql-action/autobuild@v3
-   #   - name: Perform CodeQL Analysis
-   #     uses: github/codeql-action/analyze@v3
+      - name: Build & Run Docker
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/docker-set-up@Production
+        with:
+          image_name: ${{ matrix.target.image_name }}
+          container_name: ${{ matrix.target.container_name }}
+          dockerfile: ${{ matrix.target.dockerfile }}
+          host_port: ${{ matrix.target.host_port }}
+          container_port: ${{ matrix.target.container_port }}
 
-  # 🔹 OWASP ZAP Scan (DAST)
+  # 🧬 4️⃣ CodeQL Analysis (SAST)
+  codeql-analysis:
+    runs-on:
+      group: Code-runners
+    needs: docker-set-up
+    strategy:
+      matrix:
+        project: ${{ fromJSON(inputs.project_paths) }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ inputs.codeql_language }}
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # 🧪 5️⃣ OWASP ZAP Scan (DAST)
   dast-scan:
     runs-on:
-      group: DAST
+      group: DAST-runners
     needs: docker-set-up
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.docker_targets) }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Run OWASP ZAP Baseline Scan via Docker in WSL
-        run: |
-          wsl -d Ubuntu -- bash -c "
-            docker run --rm -v \$(pwd):/zap/wrk/:rw \
-              zaproxy/zap-stable zap-baseline.py \
-              -t http:host.docker.internal:4200 \
-              -r zap-report.html
-          "
-      - name: Upload ZAP Report
-        uses: actions/upload-artifact@v4
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
         with:
-          name: zap-report
-          path: zap-report.html
+          target: "http://localhost:${{ matrix.target.host_port }}"
+          artifact_name: 'zap-report-${{ matrix.target.container_name }}'
 
+  # 🧹 6️⃣ Cleanup y retorno a Linux containers
   delete-container:
-    runs-on:
-      group: DAST
+    runs-on: windows-latest
     needs: dast-scan
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.docker_targets) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: PruebaActions/WorkFlows-Templates/.github/actions/stop-and-remove-docker@main
+      - uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/stop-and-remove-docker@Production
         with:
-          image_name: ${{ inputs.image_name }}
-          container_name: ${{ inputs.container_name }}
+          image_name: ${{ matrix.target.image_name }}
+          container_name: ${{ matrix.target.container_name }}
+
+      - name: Switch back to Linux Engine (always)
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/switch-docker-engine@Production
+        with:
+          isFramework: false
