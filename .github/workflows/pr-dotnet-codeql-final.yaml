@@ -124,15 +124,23 @@ jobs:
     runs-on:
       group: DAST
     needs: docker-set-up
-    strategy:
-      matrix:
-        target: ${{ fromJSON(inputs.docker_targets) }}
     steps:
-      - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.14.0
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: OWASP ZAP Scan
+        run: |
+          wsl -d OracleLinux_9_5 -e bash -c"
+            docker run --rm -v \$(pwd):/zap/wrk/:rw \
+              zaproxy/zap-stable zap-baseline.py \
+              -t http:host.docker.internal:4200 \
+              -r zap_report.html \
+          "
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v3
         with:
-          target: "http://localhost:${{ matrix.target.host_port }}"
-          artifact_name: 'zap-report-${{ matrix.target.container_name }}'
+          name: zap_report
+          path: zap_report.html
+
 
   # 🧹 6️⃣ Cleanup y retorno a Linux containers
   delete-container:
