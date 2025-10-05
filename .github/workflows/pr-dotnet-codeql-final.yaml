@@ -124,6 +124,9 @@ jobs:
     runs-on:
       group: DAST
     needs: docker-set-up
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.docker_targets) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -133,13 +136,12 @@ jobs:
           $workspace = "${{ github.workspace }}"
           $wslPath = $workspace.Replace('\','/').Replace('C:','/mnt/c').Replace('D:','/mnt/d')
           echo "path=$wslPath" >> $env:GITHUB_OUTPUT
-          echo "WSL Path: $wslPath"
 
       - name: OWASP ZAP Scan
         run: |
-          $appUrl = "http://host.docker.internal:${{ env.APP_PORT }}"
-          wsl -d OracleLinux_9_5 -e bash -c "docker run --rm -v '${{ steps.wsl-path.outputs.path }}:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t http://host.docker.internal:${{ matrix.target.host_port }} -r zap_report.html -J zap_report.json || true"
-      
+          $targetUrl = "http://host.docker.internal:${{ matrix.target.host_port }}"
+          echo "Scanning target URL: $targetUrl"
+          wsl -d OracleLinux_9_5 -e bash -c "docker run --rm -v '${{ steps.wsl-path.outputs.path }}:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t $targetUrl -r zap_report.html -J zap_report.json || true"
 
       - name: Check Critical Issues
         run: |
