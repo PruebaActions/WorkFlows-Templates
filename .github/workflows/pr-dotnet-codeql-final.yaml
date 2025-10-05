@@ -25,99 +25,99 @@ on:
 
 
 jobs:
-  # # 🧠 1️⃣ Detectar si alguna app usa .NET Framework
-  # detect-framework:
-  #   runs-on: 
-  #     group: DAST
-  #   outputs:
-  #     hasFramework: ${{ steps.check.outputs.hasFramework }}
-  #   steps:
-  #     - name: Check if any app requires Windows containers
-  #       id: check
-  #       shell: powershell
-  #       run: |
-  #         $targets = '${{ inputs.docker_targets }}' | ConvertFrom-Json
-  #         $frameworkExists = $targets | Where-Object { $_.isFramework -eq "true" }
-  #         if ($frameworkExists) {
-  #           Write-Host "At least one .NET Framework app found."
-  #           echo "hasFramework=true" >> $env:GITHUB_OUTPUT
-  #         } else {
-  #           echo "hasFramework=false" >> $env:GITHUB_OUTPUT
-  #         }
+# 🧠 1️⃣ Detectar si alguna app usa .NET Framework
+  detect-framework:
+    runs-on: 
+      group: DAST
+    outputs:
+      hasFramework: ${{ steps.check.outputs.hasFramework }}
+    steps:
+      - name: Check if any app requires Windows containers
+        id: check
+        shell: powershell
+        run: |
+          $targets = '${{ inputs.docker_targets }}' | ConvertFrom-Json
+          $frameworkExists = $targets | Where-Object { $_.isFramework -eq "true" }
+          if ($frameworkExists) {
+            Write-Host "At least one .NET Framework app found."
+            echo "hasFramework=true" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "hasFramework=false" >> $env:GITHUB_OUTPUT
+          }
 
-  # # 🏗 2️⃣ Build and Test (para múltiples proyectos)
-  # build-and-test:
-  #   runs-on:
-  #     group: DAST
-  #   needs: detect-framework
-  #   strategy:
-  #     matrix:
-  #       project: ${{ fromJSON(inputs.project_paths) }}
-  #   steps:
-  #     - uses: actions/checkout@v4
+  # 🏗 2️⃣ Build and Test (para múltiples proyectos)
+  build-and-test:
+    runs-on:
+      group: DAST
+    needs: detect-framework
+    strategy:
+      matrix:
+        project: ${{ fromJSON(inputs.project_paths) }}
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Build .NET Framework app
-  #       if: matrix.project.isFramework == 'true'
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
-  #       with:
-  #         solution_path: ${{ matrix.project.path }}
-  #         has_tests: ${{ inputs.has-tests }}
+      - name: Build .NET Framework app
+        if: matrix.project.isFramework == 'true'
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
+        with:
+          solution_path: ${{ matrix.project.path }}
+          has_tests: ${{ inputs.has-tests }}
 
-  #     - name: Build .NET Core/Modern app
-  #       if: matrix.project.isFramework == 'false'
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
-  #       with:
-  #         project_path: ${{ matrix.project.path }}
-  #         has_tests: ${{ inputs.has_tests }}
+      - name: Build .NET Core/Modern app
+        if: matrix.project.isFramework == 'false'
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
+        with:
+          project_path: ${{ matrix.project.path }}
+          has_tests: ${{ inputs.has_tests }}
 
-  # # 🐋 3️⃣ Build & Run Docker containers
-  # docker-set-up:
-  #   runs-on: 
-  #     group: DAST
-  #   needs: [detect-framework, build-and-test]
-  #   strategy:
-  #     matrix:
-  #       target: ${{ fromJSON(inputs.docker_targets) }}
-  #   steps:
-  #     - uses: actions/checkout@v4
+  # 🐋 3️⃣ Build & Run Docker containers
+  docker-set-up:
+    runs-on: 
+      group: DAST
+    needs: [detect-framework, build-and-test]
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.docker_targets) }}
+    steps:
+      - uses: actions/checkout@v4
 
-  #     # Cambia el engine si se requiere Windows
-  #     - name: Switch Docker Engine if needed
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
-  #       with:
-  #         isFramework: ${{ needs.detect-framework.outputs.hasFramework }}
+      # Cambia el engine si se requiere Windows
+      - name: Switch Docker Engine if needed
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
+        with:
+          isFramework: ${{ needs.detect-framework.outputs.hasFramework }}
 
-  #     - name: Build & Run Docker
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
-  #       with:
-  #         image_name: ${{ matrix.target.image_name }}
-  #         container_name: ${{ matrix.target.container_name }}
-  #         dockerfile: ${{ matrix.target.dockerfile }}
-  #         host_port: ${{ matrix.target.host_port }}
-  #         container_port: ${{ matrix.target.container_port }}
+      - name: Build & Run Docker
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
+        with:
+          image_name: ${{ matrix.target.image_name }}
+          container_name: ${{ matrix.target.container_name }}
+          dockerfile: ${{ matrix.target.dockerfile }}
+          host_port: ${{ matrix.target.host_port }}
+          container_port: ${{ matrix.target.container_port }}
 
-  # # 🧬 4️⃣ CodeQL Analysis (SAST)
-  # codeql-analysis:
-  #   runs-on:
-  #     group: DAST
-  #   needs: docker-set-up
-  #   strategy:
-  #     matrix:
-  #       project: ${{ fromJSON(inputs.project_paths) }}
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Initialize CodeQL
-  #       uses: github/codeql-action/init@v3
-  #       with:
-  #         languages: ${{ inputs.codeql_language }}
-  #     - name: Autobuild
-  #       uses: github/codeql-action/autobuild@v3
-  #     - name: Perform CodeQL Analysis
-  #       uses: github/codeql-action/analyze@v3
+  # 🧬 4️⃣ CodeQL Analysis (SAST)
+  codeql-analysis:
+    runs-on:
+      group: DAST
+    needs: docker-set-up
+    strategy:
+      matrix:
+        project: ${{ fromJSON(inputs.project_paths) }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ inputs.codeql_language }}
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
 
   # 🧪 5️⃣ OWASP ZAP Scan (DAST)
   dast-scan:
