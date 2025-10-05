@@ -127,16 +127,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: OWASP ZAP Scan
-        shell: bash
+      - name: Set WSL Path
+        id: wsl-path
         run: |
-          WSL_PATH=$(echo "${{ github.workspace }}" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/mnt/\L\1|')
-        
-          echo "GitHub Workspace: ${{ github.workspace }}"
-          echo "WSL Path: ${WSL_PATH}"
-        
+          $workspace = "${{ github.workspace }}"
+          $wslPath = $workspace.Replace('\','/').Replace('C:','/mnt/c').Replace('D:','/mnt/d')
+          echo "path=$wslPath" >> $env:GITHUB_OUTPUT
+          echo "WSL Path: $wslPath"
+
+      - name: OWASP ZAP Scan
+        run: |
           wsl -d OracleLinux_9_5 -e bash -c " 
-            docker run --rm -v "\$(WSL_PATH):/zap/wrk/:rw" \
+            docker run --rm -v "\$(steps.wsl-path.outputs.path):/zap/wrk/:rw" \
             owasp/zap2docker-stable zap-baseline.py \
             -t http://host.docker.internal:64108 \
             -r zap_report.html \
