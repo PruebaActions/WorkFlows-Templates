@@ -25,7 +25,7 @@ on:
 
 
 jobs:
-# 🧠 1️⃣ Detectar si alguna app usa .NET Framework
+  # 🧠 1️⃣ Detectar si alguna app usa .NET Framework
   detect-framework:
     runs-on: 
       group: DAST
