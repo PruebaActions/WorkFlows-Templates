@@ -138,7 +138,7 @@ jobs:
       - name: OWASP ZAP Scan
         run: |
           wsl -d OracleLinux_9_5 -e bash -c " 
-            docker run --rm -v "\$(steps.wsl-path.outputs.path):/zap/wrk/:rw" \
+            docker run --rm -v "${{ steps.wsl-path.outputs.path }}:/zap/wrk/:rw" \
             owasp/zap2docker-stable zap-baseline.py \
             -t http://host.docker.internal:64108 \
             -r zap_report.html \
