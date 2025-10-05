@@ -93,7 +93,7 @@ jobs:
           image_name: ${{ matrix.target.image_name }}
           container_name: ${{ matrix.target.container_name }}
           dockerfile: ${{ matrix.target.dockerfile }}
-          host_port: ${{ matrix.target.host_port }}
+          host_port: '4200'
           container_port: ${{ matrix.target.container_port }}
 
   # 🧬 4️⃣ CodeQL Analysis (SAST)
@@ -123,7 +123,7 @@ jobs:
   dast-scan:
     runs-on:
       group: DAST
-    #needs: docker-set-up
+    needs: docker-set-up
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -138,7 +138,7 @@ jobs:
       - name: OWASP ZAP Scan
         run: |
           $appUrl = "http://host.docker.internal:${{ env.APP_PORT }}"
-          wsl -d OracleLinux_9_5 -e bash -c "docker run --rm -v '${{ steps.wsl-path.outputs.path }}:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t $appUrl -r zap_report.html -J zap_report.json || true"
+          wsl -d OracleLinux_9_5 -e bash -c "docker run --rm -v '${{ steps.wsl-path.outputs.path }}:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t http://host.docker.internal:4200 -r zap_report.html -J zap_report.json || true"
       
 
       - name: Check Critical Issues
