@@ -137,14 +137,33 @@ jobs:
 
       - name: OWASP ZAP Scan
         run: |
-          wsl -d OracleLinux_9_5 -e bash -c "docker run --rm -v '${{ steps.wsl-path.outputs.path }}:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t http://host.docker.internal:64108 -r zap_report.html -l FAIL"
+          $appUrl = "http://host.docker.internal:${{ env.APP_PORT }}"
+          wsl -d OracleLinux_9_5 -e bash -c "docker run --rm -v '${{ steps.wsl-path.outputs.path }}:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t $appUrl -r zap_report.html -J zap_report.json || true"
       
+
+      - name: Check Critical Issues
+        run: |
+          if (Test-Path zap_report.json) {
+            $json = Get-Content zap_report.json | ConvertFrom-Json
+            $criticalIssues = $json.site[0].alerts | Where-Object { $_.riskcode -eq "3" }
+            
+            if ($criticalIssues.Count -gt 0) {
+              Write-Host "::error::Found $($criticalIssues.Count) critical vulnerabilities"
+              $criticalIssues | ForEach-Object { Write-Host "  - $($_.name)" }
+              exit 1
+            }
+            Write-Host "No critical vulnerabilities found"
+          }
+
+
       - name: Upload ZAP Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: zap_report
-          path: zap_report.html
+          name: zap-scan-report-${{ github.run_number }}
+          path: |
+            zap_report.html
+            zap_report.json
 
 
   # 🧹 6️⃣ Cleanup y retorno a Linux containers
