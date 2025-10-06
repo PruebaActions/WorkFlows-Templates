@@ -110,15 +110,31 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ inputs.codeql_language }}
           queries: security-and-quality
+
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
+        with:
+          build-command: |
+            if (${{ matrix.project.isFramework }} -eq 'true') {
+              nuget restore ${{ matrix.project.path }}
+              msbuild ${{ matrix.project.path }} /p:Configuration=Release
+            } else {
+              dotnet build ${{ matrix.project.path }} --configuration Release
+            }
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ inputs.codeql_language }}"
+          output: sarif-results.sarif
+          upload: true
 
   # 🧪 5️⃣ OWASP ZAP Scan (DAST)
   dast-scan:
