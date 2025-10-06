@@ -1,0 +1,71 @@
+name: OWASP ZAP Scan (DAST)
+description: "Realiza un análisis DAST usando OWASP ZAP contra la aplicación corriendo en un contenedor Docker"
+
+inputs:
+  container_name:
+    description: "Nombre del contenedor donde está corriendo la aplicación"
+    required: true
+  wsl_distro:
+    description: "Nombre de la distribución WSL a usar (por ejemplo, OracleLinux_9_5 o Ubuntu)"
+    required: false
+    default: "OracleLinux_9_1"
+  github_workspace:
+    description: "Ruta del workspace en el runner"
+    required: true
+  run_number:
+    description: "Número de ejecución del workflow (para reportes únicos)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up WSL path
+      id: wsl-path
+      shell: powershell
+      run: |
+        $workspace = "${{ inputs.github_workspace }}"
+        $wslPath = $workspace.Replace('\','/').Replace('C:','/mnt/c').Replace('D:','/mnt/d')
+        echo "path=$wslPath" >> $env:GITHUB_OUTPUT
+
+    - name: OWASP ZAP Scan
+      shell: powershell
+      run: |
+        $containerName = "${{ inputs.container_name }}"
+        $distro = "${{ inputs.wsl_distro }}"
+        $runNumber = "${{ inputs.run_number }}"
+        $path = "${{ steps.wsl-path.outputs.path }}"
+          
+        $port = (docker port $containerName | Select-String -Pattern ':(\d+)' | Select-Object -First 1).Matches.Groups[1].Value
+
+        wsl -d $distro -e bash -c "docker run --rm -v '$path:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t http://host.docker.internal:$port -r zap_report_${containerName}_$runNumber.html -J zap_report_${containerName}_$runNumber.json -l FAIL || true"
+
+    - name: Check Critical Issues
+      shell: powershell
+      run: |
+        $containerName = "${{ inputs.container_name }}"
+        $runNumber = "${{ inputs.run_number }}"
+        $jsonPath = "zap_report_${containerName}_$runNumber.json"
+
+        if (Test-Path $jsonPath) {
+          $json = Get-Content $jsonPath | ConvertFrom-Json
+          $criticalIssues = $json.site[0].alerts | Where-Object { $_.riskcode -eq "3" }
+          
+          if ($criticalIssues.Count -gt 0) {
+            Write-Host "::error::Found $($criticalIssues.Count) critical vulnerabilities"
+            $criticalIssues | ForEach-Object { Write-Host "  - $($_.name)" }
+            exit 1
+          }
+          Write-Host "No critical vulnerabilities found"
+        }
+
+    - name: Upload ZAP Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-scan-report-${{ inputs.run_number }}
+        path: |
+          zap_report_${{ inputs.container_name }}_${{ inputs.run_number }}.html
+          zap_report_${{ inputs.container_name }}_${{ inputs.run_number }}.json
