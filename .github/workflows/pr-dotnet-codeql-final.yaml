@@ -114,6 +114,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ inputs.codeql_language }}
+          queries: security-and-quality
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
       - name: Perform CodeQL Analysis
