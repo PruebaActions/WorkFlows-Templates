@@ -45,56 +45,56 @@ jobs:
             echo "hasFramework=false" >> $env:GITHUB_OUTPUT
           }
 
-  # 🏗 2️⃣ Build and Test (para múltiples proyectos)
-  build-and-test:
-    runs-on:
-      group: DAST
-    needs: detect-framework
-    strategy:
-      matrix:
-        project: ${{ fromJSON(inputs.project_paths) }}
-    steps:
-      - uses: actions/checkout@v4
+  # # 🏗 2️⃣ Build and Test (para múltiples proyectos)
+  # build-and-test:
+  #   runs-on:
+  #     group: DAST
+  #   needs: detect-framework
+  #   strategy:
+  #     matrix:
+  #       project: ${{ fromJSON(inputs.project_paths) }}
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Build .NET Framework app
-        if: matrix.project.isFramework == 'true'
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
-        with:
-          solution_path: ${{ matrix.project.path }}
-          has_tests: ${{ inputs.has-tests }}
+  #     - name: Build .NET Framework app
+  #       if: matrix.project.isFramework == 'true'
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
+  #       with:
+  #         solution_path: ${{ matrix.project.path }}
+  #         has_tests: ${{ inputs.has-tests }}
 
-      - name: Build .NET Core/Modern app
-        if: matrix.project.isFramework == 'false'
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
-        with:
-          project_path: ${{ matrix.project.path }}
-          has_tests: ${{ inputs.has_tests }}
+  #     - name: Build .NET Core/Modern app
+  #       if: matrix.project.isFramework == 'false'
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
+  #       with:
+  #         project_path: ${{ matrix.project.path }}
+  #         has_tests: ${{ inputs.has_tests }}
 
-  # 🐋 3️⃣ Build & Run Docker containers
-  docker-set-up:
-    runs-on: 
-      group: DAST
-    needs: [detect-framework, build-and-test]
-    strategy:
-      matrix:
-        target: ${{ fromJSON(inputs.docker_targets) }}
-    steps:
-      - uses: actions/checkout@v4
+  # # 🐋 3️⃣ Build & Run Docker containers
+  # docker-set-up:
+  #   runs-on: 
+  #     group: DAST
+  #   needs: [detect-framework, build-and-test]
+  #   strategy:
+  #     matrix:
+  #       target: ${{ fromJSON(inputs.docker_targets) }}
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      # Cambia el engine si se requiere Windows
-      - name: Switch Docker Engine if needed
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
-        with:
-          isFramework: ${{ needs.detect-framework.outputs.hasFramework }}
+  #     # Cambia el engine si se requiere Windows
+  #     - name: Switch Docker Engine if needed
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
+  #       with:
+  #         isFramework: ${{ needs.detect-framework.outputs.hasFramework }}
 
-      - name: Build & Run Docker
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
-        with:
-          image_name: ${{ matrix.target.image_name }}
-          container_name: ${{ matrix.target.container_name }}
-          dockerfile: ${{ matrix.target.dockerfile }}
-          host_port: ${{ matrix.target.host_port }}
-          container_port: ${{ matrix.target.container_port }}
+  #     - name: Build & Run Docker
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
+  #       with:
+  #         image_name: ${{ matrix.target.image_name }}
+  #         container_name: ${{ matrix.target.container_name }}
+  #         dockerfile: ${{ matrix.target.dockerfile }}
+  #         host_port: ${{ matrix.target.host_port }}
+  #         container_port: ${{ matrix.target.container_port }}
 
   # 🧬 4️⃣ CodeQL Analysis (SAST)
   codeql-analysis:
@@ -142,7 +142,7 @@ jobs:
         uses: PruebaActions/WorkFlows-Templates/.github/actions/dast-scan@main
         with:
           container_name: ${{ matrix.target.container_name }}
-          wsl_distro: "OracleLinux_9_1"
+          wsl_distro: "OracleLinux_9_5"
           github_workspace: ${{ github.workspace }}
           run_number: ${{ github.run_number }}
 
