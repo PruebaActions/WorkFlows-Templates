@@ -74,7 +74,7 @@ jobs:
   docker-set-up:
     runs-on: 
       group: DAST
-    needs: [detect-framework, build-and-test]
+    needs: [detect-framework]
     strategy:
       matrix:
         target: ${{ fromJSON(inputs.docker_targets) }}
