@@ -70,31 +70,31 @@ jobs:
   #         project_path: ${{ matrix.project.path }}
   #         has_tests: ${{ inputs.has_tests }}
 
-  # # 🐋 3️⃣ Build & Run Docker containers
-  # docker-set-up:
-  #   runs-on: 
-  #     group: DAST
-  #   needs: [detect-framework, build-and-test]
-  #   strategy:
-  #     matrix:
-  #       target: ${{ fromJSON(inputs.docker_targets) }}
-  #   steps:
-  #     - uses: actions/checkout@v4
+  # 🐋 3️⃣ Build & Run Docker containers
+  docker-set-up:
+    runs-on: 
+      group: DAST
+    needs: [detect-framework, build-and-test]
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.docker_targets) }}
+    steps:
+      - uses: actions/checkout@v4
 
-  #     # Cambia el engine si se requiere Windows
-  #     - name: Switch Docker Engine if needed
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
-  #       with:
-  #         isFramework: ${{ needs.detect-framework.outputs.hasFramework }}
+      # Cambia el engine si se requiere Windows
+      - name: Switch Docker Engine if needed
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
+        with:
+          isFramework: ${{ needs.detect-framework.outputs.hasFramework }}
 
-  #     - name: Build & Run Docker
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
-  #       with:
-  #         image_name: ${{ matrix.target.image_name }}
-  #         container_name: ${{ matrix.target.container_name }}
-  #         dockerfile: ${{ matrix.target.dockerfile }}
-  #         host_port: ${{ matrix.target.host_port }}
-  #         container_port: ${{ matrix.target.container_port }}
+      - name: Build & Run Docker
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
+        with:
+          image_name: ${{ matrix.target.image_name }}
+          container_name: ${{ matrix.target.container_name }}
+          dockerfile: ${{ matrix.target.dockerfile }}
+          host_port: ${{ matrix.target.host_port }}
+          container_port: ${{ matrix.target.container_port }}
 
   # 🧬 4️⃣ CodeQL Analysis (SAST)
   codeql-analysis:
@@ -131,7 +131,7 @@ jobs:
   dast-scan:
     runs-on:
       group: DAST
-    #needs: docker-set-up
+    needs: docker-set-up
     strategy:
       matrix:
         target: ${{ fromJSON(inputs.docker_targets) }}
