@@ -147,21 +147,21 @@ jobs:
           run_number: ${{ github.run_number }}
 
   # 🧹 6️⃣ Cleanup y retorno a Linux containers
-  delete-container:
-    runs-on: 
-      group: DAST
-    needs: dast-scan
-    strategy:
-      matrix:
-        target: ${{ fromJSON(inputs.docker_targets) }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: PruebaActions/WorkFlows-Templates/.github/actions/stop-and-remove-docker@main
-        with:
-          image_name: ${{ matrix.target.image_name }}
-          container_name: ${{ matrix.target.container_name }}
+  # delete-container:
+  #   runs-on: 
+  #     group: DAST
+  #   needs: dast-scan
+  #   strategy:
+  #     matrix:
+  #       target: ${{ fromJSON(inputs.docker_targets) }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: PruebaActions/WorkFlows-Templates/.github/actions/stop-and-remove-docker@main
+  #       with:
+  #         image_name: ${{ matrix.target.image_name }}
+  #         container_name: ${{ matrix.target.container_name }}
 
-      - name: Switch back to Linux Engine (always)
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
-        with:
-          isFramework: 'false'
+  #     - name: Switch back to Linux Engine (always)
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
+  #       with:
+  #         isFramework: 'false'
