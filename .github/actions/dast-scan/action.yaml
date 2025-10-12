@@ -40,7 +40,7 @@ runs:
           
         $port = (docker port $containerName | Select-String -Pattern ':(\d+)' | Select-Object -First 1).Matches.Groups[1].Value
 
-        wsl -d $distro -e bash -c "docker run --rm -v '${path}:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t http://host.docker.internal:$port/swagger/v1/swagger.json -f openapi -r zap_report_${containerName}_$runNumber.html -J zap_report_${containerName}_$runNumber.json -l FAIL || true"
+        wsl -d $distro -e bash -c "docker run --rm -v '${path}:/zap/wrk/:rw' zaproxy/zap-stable zap-api-scan.py -t http://host.docker.internal:$port/swagger/v1/swagger.json -f openapi -r zap_report_${containerName}_$runNumber.html -J zap_report_${containerName}_$runNumber.json -l FAIL || true"
 
     - name: Check Critical Issues
       shell: powershell
