@@ -131,7 +131,7 @@ jobs:
   dast-scan:
     runs-on:
       group: DAST
-    #needs: docker-set-up
+    needs: docker-set-up
     strategy:
       matrix:
         target: ${{ fromJSON(inputs.docker_targets) }}
