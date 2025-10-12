@@ -47,7 +47,8 @@ runs:
       run: |
         $containerName = "${{ inputs.container_name }}"
         $runNumber = "${{ inputs.run_number }}"
-        $jsonPath = "zap_report_${containerName}_$runNumber.json"
+        $workspace = "${{ inputs.github_workspace }}"
+        $jsonPath = Join-Path $workspace "zap_report_${containerName}_$runNumber.json"
 
         if (Test-Path $jsonPath) {
           $json = Get-Content $jsonPath | ConvertFrom-Json
@@ -67,5 +68,5 @@ runs:
       with:
         name: zap-scan-report-${{ inputs.run_number }}
         path: |
-          zap_report_${{ inputs.container_name }}_${{ inputs.run_number }}.html
-          zap_report_${{ inputs.container_name }}_${{ inputs.run_number }}.json
+           ${{ inputs.github_workspace }}/zap_report_${{ inputs.container_name }}_${{ inputs.run_number }}.html
+           ${{ inputs.github_workspace }}/zap_report_${{ inputs.container_name }}_${{ inputs.run_number }}.json
