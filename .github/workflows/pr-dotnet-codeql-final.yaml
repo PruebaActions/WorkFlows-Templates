@@ -100,7 +100,7 @@ jobs:
   codeql-analysis:
     runs-on:
       group: DAST
-    needs: docker-set-up
+    #needs: docker-set-up
     strategy:
       matrix:
         project: ${{ fromJSON(inputs.project_paths) }}
