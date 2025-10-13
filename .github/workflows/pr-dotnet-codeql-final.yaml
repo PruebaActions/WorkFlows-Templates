@@ -19,7 +19,7 @@ on:
         required: true
 
       docker_targets:
-        description: "Lista JSON de targets Docker (image_name, container_name, dockerfile, host_port, container_port, isFramework)"
+        description: "Lista JSON de targets Docker (image_name, container_name, dockerfile, host_port, container_port, isFramework, is_api, api_doc_path)"
         required: true
         type: string
 
@@ -145,6 +145,8 @@ jobs:
           wsl_distro: "OracleLinux_9_5"
           github_workspace: ${{ github.workspace }}
           run_number: ${{ github.run_number }}
+          is_api: ${{ matrix.target.is_api }}
+          api_doc_path: ${{ matrix.target.api_doc_path }}
 
   #🧹 6️⃣ Cleanup y retorno a Linux containers
   delete-container:

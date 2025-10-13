@@ -8,13 +8,21 @@ inputs:
   wsl_distro:
     description: "Nombre de la distribución WSL a usar (por ejemplo, OracleLinux_9_5 o Ubuntu)"
     required: false
-    default: "OracleLinux_9_1"
+    default: "OracleLinux_9_5"
   github_workspace:
     description: "Ruta del workspace en el runner"
     required: true
   run_number:
     description: "Número de ejecución del workflow (para reportes únicos)"
     required: true
+  is_api:
+    description: "Indica si la aplicación es una API (true/false)"
+    required: false
+    default: "false"
+  api_doc_path:
+    description: "Ruta al documento de la API (por ejemplo, /swagger/v1/swagger.json)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -28,18 +36,68 @@ runs:
         $wslPath = $workspace.Replace('\','/').Replace('C:','/mnt/c').Replace('D:','/mnt/d')
         echo "path=$wslPath" >> $env:GITHUB_OUTPUT
 
-    - name: OWASP ZAP Scan
+
+    - name: Validate API Configuration
+      if: inputs.is_api == 'true'
+      shell: powershell
+      run: |
+        $apiDocPath = "${{ inputs.api_doc_path }}"
+        
+        if ([string]::IsNullOrWhiteSpace($apiDocPath)) {
+          Write-Host "::error::Para APIs (is_api=true) debes proporcionar api_doc_path"
+          Write-Host "::error::Ejemplo: api_doc_path: '/swagger/v1/swagger.json'"
+          exit 1
+        }
+        
+        Write-Host "::notice::Configuración API validada"
+        Write-Host "::notice::Documento API: $apiDocPath"
+
+    - name: OWASP ZAP API Scan
+      if: inputs.is_api == 'true'
       shell: powershell
       run: |
         $containerName = "${{ inputs.container_name }}"
         $distro = "${{ inputs.wsl_distro }}"
         $runNumber = "${{ inputs.run_number }}"
         $path = "${{ steps.wsl-path.outputs.path }}"
-          
-        $port = (docker port $containerName | Select-String -Pattern ':(\d+)' | Select-Object -First 1).Matches.Groups[1].Value
+        $port = "${{ steps.get-port.outputs.port }}"
+        $apiDocPath = "${{ inputs.api_doc_path }}"
+        
+        $targetUrl = "http://host.docker.internal:$port$apiDocPath"
+        
+        Write-Host "===========================================" 
+        Write-Host "Ejecutando ZAP API Scan"
+        Write-Host "Target: $targetUrl"
+        Write-Host "Contenedor: $containerName"
+        Write-Host "==========================================="
+        
+        wsl -d $distro -e bash -c "docker run --rm -v '${path}:/zap/wrk/:rw' zaproxy/zap-stable zap-api-scan.py -t $targetUrl -f openapi -r zap_report_${containerName}_$runNumber.html -J zap_report_${containerName}_$runNumber.json -l FAIL || true"
+        
+        Write-Host "::notice::ZAP API Scan completado"
 
-        wsl -d $distro -e bash -c "docker run --rm -v '${path}:/zap/wrk/:rw' zaproxy/zap-stable zap-full-scan.py -t http://host.docker.internal:$port/swagger/v1/swagger.json -r zap_report_${containerName}_$runNumber.html -J zap_report_${containerName}_$runNumber.json -l FAIL || true"
+    - name: OWASP ZAP Baseline Scan
+      if: inputs.is_api == 'false'
+      shell: powershell
+      run: |
+        $containerName = "${{ inputs.container_name }}"
+        $distro = "${{ inputs.wsl_distro }}"
+        $runNumber = "${{ inputs.run_number }}"
+        $path = "${{ steps.wsl-path.outputs.path }}"
+        $port = "${{ steps.get-port.outputs.port }}"
+        
+        $targetUrl = "http://host.docker.internal:$port"
+        
+        Write-Host "==========================================="
+        Write-Host "Ejecutando ZAP Baseline Scan"
+        Write-Host "Target: $targetUrl"
+        Write-Host "Contenedor: $containerName"
+        Write-Host "==========================================="
+        
+        wsl -d $distro -e bash -c "docker run --rm -v '${path}:/zap/wrk/:rw' zaproxy/zap-stable zap-baseline.py -t $targetUrl -r zap_report_${containerName}_$runNumber.html -J zap_report_${containerName}_$runNumber.json -l FAIL || true"
+        
+        Write-Host "::notice::ZAP Baseline Scan completado"
 
+        
     - name: Check Critical Issues
       shell: powershell
       run: |
