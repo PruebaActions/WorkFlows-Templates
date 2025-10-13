@@ -145,8 +145,8 @@ jobs:
           wsl_distro: "OracleLinux_9_5"
           github_workspace: ${{ github.workspace }}
           run_number: ${{ github.run_number }}
-          is_api: ${{ matrix.target.is_api }}
-          api_doc_path: ${{ matrix.target.api_doc_path }}
+          is_api: ${{ matrix.target.is_api || 'false' }}
+          api_doc_path: ${{ matrix.target.api_doc_path || '' }}
 
   #🧹 6️⃣ Cleanup y retorno a Linux containers
   delete-container:
