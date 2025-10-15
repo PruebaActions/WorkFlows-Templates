@@ -12,5 +12,8 @@
   "description": "",
   "dependencies": {
     "@octokit/core": "^7.0.5"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.4"
   }
 }
