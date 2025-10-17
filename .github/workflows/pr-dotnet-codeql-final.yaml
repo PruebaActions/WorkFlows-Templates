@@ -32,6 +32,7 @@ jobs:
     outputs:
       hasFramework: ${{ steps.check.outputs.hasFramework }}
     steps:
+      - uses: actions/checkout@v4
       - name: Check if any app requires Windows containers
         id: check
         shell: powershell
