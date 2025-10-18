@@ -1,30 +1,35 @@
-name: "Build & Test app"
-description: "Construye la aplicación y testea"
+name: "Build & Run"
+description: "Construye la aplicacion y testea"
 
 inputs:
-  has_tests:
-    description: "Confirmar si la app tiene tests para ejecutarlos"
-    required: true
-    type: bool
-  project_path:
-    description: "Ruta al .csproj"
-    required: true
+    isTest:
+      description: "Confirmar si la app tiene tests para ejecutarlos"
+      required: true
+      type: bool
+    project_path:
+      description: "Ruta al .csproj"
+      required: true
 
 runs:
   using: "composite"
   steps:
     - name: Restore app
+      if: ${{ inputs.isTest != 'true' }}
       shell: powershell
       run: |
+        Write-Host "🔄 Restoring project: ${{ inputs.project_path }}"
         dotnet restore ${{ inputs.project_path }}
 
     - name: Build the app
+      if: ${{ inputs.isTest != 'true' }}
       shell: powershell
       run: |
-        dotnet build ${{ inputs.project_path }} --configuration Release
+        Write-Host "🏗 Building project: ${{ inputs.project_path }}"
+        dotnet build ${{ inputs.project_path }} --no-restore --configuration Release
 
     - name: Test the app
-      if: ${{ inputs.has_tests == true }}
+      if: ${{ inputs.isTest == 'true' }}
       shell: powershell
       run: |
-        dotnet test ${{ inputs.project_path }}
+        Write-Host "🧪 Running tests for: ${{ inputs.project_path }}"
+        dotnet test ${{ inputs.project_path }} --no-build

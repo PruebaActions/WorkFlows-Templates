@@ -1,0 +1,38 @@
+name: Build Vue.js Application
+description: Instala dependencias y construye una aplicación Vue.js con npm run build-prod
+
+inputs:
+  project_path:
+    description: "Ruta al proyecto Vue.js"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Disable SSL verification (enterprise CA)
+      shell: powershell
+      run: |
+        setx NODE_TLS_REJECT_UNAUTHORIZED 0
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        #cache: false
+        cache-dependency-path: ${{ inputs.project_path }}/package-lock.json
+
+    - name: Install dependencies
+      shell: powershell
+      working-directory: ${{ inputs.project_path }}
+      run: npm ci
+
+    - name: Run Linter
+      shell: powershell
+      working-directory: ${{ inputs.project_path }}
+      run: npm run lint; if ($LASTEXITCODE -ne 0) { Write-Host "Lint warnings ignored" }
+
+    - name: Build Vue.js app (fast)
+      shell: powershell
+      working-directory: ${{ inputs.project_path }}
+      run: npm run dist

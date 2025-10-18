@@ -2,7 +2,7 @@ name: "Build & Test app"
 description: "Construye la aplicación y testea con MSBuild para .NET Framework"
 
 inputs:
-  has_tests:
+  isTest:
     description: "Confirmar si la app tiene tests para ejecutarlos"
     required: true
     type: bool
@@ -12,10 +12,7 @@ inputs:
 
 runs:
   using: "composite"
-  steps:
-    #- name: Setup NuGet
-     # uses: NuGet/setup-nuget@v1.2.0
-      
+  steps:      
     - name: Restore NuGet packages
       shell: powershell
       run: |
@@ -27,7 +24,7 @@ runs:
         msbuild ${{ inputs.solution_path }} /p:Configuration=Release
 
     - name: Run tests
-      if: ${{ inputs.has_tests == true }}
+      if: ${{ inputs.isTest == true }}
       shell: powershell
       run: |
         vstest.console.exe **\*test*.dll
