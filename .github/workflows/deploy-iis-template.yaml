@@ -155,8 +155,8 @@ jobs:
 
           # 💡 Ejecutar msdeploy en modo local (sin Deployment Agent)
           & "$cmd" -verb:sync `
-            "-source:contentPath=$publishDir" `
-            "-dest:contentPath=$target" `
+            "-source:dirPath=$publishDir" `
+            "-dest:dirPath=$target" `
             -enableRule:AppOffline `
             -retryAttempts:3 `
             -allowUntrusted `
