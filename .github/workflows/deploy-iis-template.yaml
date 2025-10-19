@@ -32,7 +32,7 @@ jobs:
   deploy_to_iis:
     name: "Build and Deploy to IIS"
     runs-on:
-      group: IIS-Runners  # Tu grupo de self-hosted runners en Windows Server
+      group: DAST  # Tu grupo de self-hosted runners en Windows Server
 
     steps:
       - name: Checkout repository
@@ -41,7 +41,7 @@ jobs:
       # 🔍 Detectar si es .NET Framework o .NET Core/5+
       - name: Detect .NET version
         id: detect
-        shell: pwsh
+        shell: powershell
         run: |
           $sln = "${{ inputs.solution_path }}"
           $content = Get-Content $sln -Raw
@@ -54,7 +54,7 @@ jobs:
       # 🧱 Compilar y publicar
       - name: Build and Publish
         id: build
-        shell: pwsh
+        shell: powershell
         run: |
           $publishDir = "$env:GITHUB_WORKSPACE\publish"
           if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
@@ -71,7 +71,7 @@ jobs:
       # 🗓️ Generar carpeta versionada (APP-YYYY-MM-DD-#)
       - name: Generate deployment version
         id: version
-        shell: pwsh
+        shell: powershell
         run: |
           $date = Get-Date -Format "yyyy-MM-dd"
           $base = "${{ inputs.app_name }}-$date"
@@ -83,7 +83,7 @@ jobs:
       # ⚙️ Ejecutar scripts SQL (opcional)
       - name: Run SQL scripts
         if: ${{ inputs.has_sql_scripts }}
-        shell: pwsh
+        shell: powershell
         run: |
           git fetch origin ${{ inputs.sql_scripts_branch }}
           git checkout ${{ inputs.sql_scripts_branch }}
@@ -95,7 +95,7 @@ jobs:
 
       # 💾 Backup del deployment actual
       - name: Backup current version
-        shell: pwsh
+        shell: powershell
         run: |
           $source = Join-Path "${{ inputs.iis_root_path }}" "${{ inputs.app_name }}"
           if (-not (Test-Path $source)) {
@@ -110,7 +110,7 @@ jobs:
       # 🚀 Desplegar con Web Deploy
       - name: Deploy new version
         id: deploy
-        shell: pwsh
+        shell: powershell
         continue-on-error: true
         run: |
           $publishDir = "$env:GITHUB_WORKSPACE\publish"
@@ -129,7 +129,7 @@ jobs:
       - name: Health check
         id: health
         continue-on-error: true
-        shell: pwsh
+        shell: powershell
         run: |
           $url = "http://localhost/"
           try {
@@ -143,7 +143,7 @@ jobs:
       # 🔁 Swap IIS site si el health check pasa
       - name: Swap IIS site path
         if: ${{ steps.deploy.outcome == 'success' && steps.health.outcome == 'success' }}
-        shell: pwsh
+        shell: powershell
         run: |
           Import-Module WebAdministration
           Set-ItemProperty "IIS:\Sites\${{ inputs.iis_site_name }}" -Name physicalPath -Value "C:\inetpub\wwwroot\${{ steps.version.outputs.new_version }}"
@@ -152,7 +152,7 @@ jobs:
       # ⏪ Rollback automático si algo falla
       - name: Automatic rollback
         if: ${{ steps.deploy.outcome == 'failure' || steps.health.outcome == 'failure' }}
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "⚠️ Deployment failed or health check failed. Rolling back..."
           Import-Module WebAdministration
