@@ -32,7 +32,7 @@ jobs:
   deploy_to_iis:
     name: "Build and Deploy to IIS"
     runs-on:
-      group: DAST  # Tu grupo de self-hosted runners en Windows Server
+      group: DAST  # Tu grupo de self-hosted runners Windows con IIS
 
     steps:
       - name: Checkout repository
@@ -51,7 +51,7 @@ jobs:
             echo "framework=netcore" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
 
-      # 🧱 Compilar y publicar
+      # 🧱 Compilar y publicar según el framework
       - name: Build and Publish
         id: build
         shell: powershell
@@ -63,7 +63,20 @@ jobs:
           if ("${{ steps.detect.outputs.framework }}" -eq "netframework") {
             Write-Host "🧱 Building ASP.NET Framework app..."
             $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
-            & $msbuild "${{ inputs.solution_path }}" /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:DeleteExistingFiles=False /p:PublishUrl=$publishDir
+            
+            if (-not (Test-Path $msbuild)) {
+              Write-Host "❌ MSBuild not found at $msbuild"
+              exit 1
+            }
+
+            & $msbuild "${{ inputs.solution_path }}" `
+              /p:Configuration=Release `
+              /p:DeployOnBuild=true `
+              /p:WebPublishMethod=FileSystem `
+              /p:DeleteExistingFiles=False `
+              /p:PublishUrl="$publishDir" `
+              /verbosity:minimal
+
           } else {
             Write-Host "🧱 Building .NET (Core/5+) app..."
             $projects = Get-ChildItem -Path (Split-Path "${{ inputs.solution_path }}") -Filter "*.csproj" -Recurse
@@ -71,7 +84,6 @@ jobs:
               dotnet publish $proj.FullName --configuration Release --output "$publishDir\$($proj.BaseName)"
             }
           }
-
 
       # 🗓️ Generar carpeta versionada (APP-YYYY-MM-DD-#)
       - name: Generate deployment version
@@ -122,12 +134,14 @@ jobs:
           $target = "C:\inetpub\wwwroot\${{ steps.version.outputs.new_version }}"
           New-Item -ItemType Directory -Force -Path $target | Out-Null
           $cmd = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+
           & $cmd -verb:sync `
                  -source:contentPath:"$publishDir" `
                  -dest:contentPath:"$target",computerName=localhost `
                  -enableRule:AppOffline `
                  -retryAttempts:3 `
                  -allowUntrusted
+
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       # 🩺 Health Check del sitio
