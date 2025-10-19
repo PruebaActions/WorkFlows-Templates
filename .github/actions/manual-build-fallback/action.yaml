@@ -1,0 +1,61 @@
+name: "CodeQL Manual Build Fallback"
+description: "Construye la solución completa cuando CodeQL autobuild falla"
+
+inputs:
+  solution_path:
+    description: "Ruta al archivo .sln principal"
+    required: true
+    type: string
+  solution_isFramework:
+    description: "Indica si la solución usa .NET Framework (true) o .NET Core/5+ (false)"
+    required: true
+    type: string
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build .NET Framework solution
+      if: ${{ inputs.solution_isFramework == 'true' }}
+      uses:  PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
+      with:
+        solution_path: ${{ inputs.solution_path }}
+        isTest: 'false'
+
+    - name: Build .NET Core/5+ solution
+      if: ${{ inputs.solution_isFramework == 'false' }}
+      uses:  PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
+      with:
+        project_path: ${{ inputs.solution_path }}
+        isTest: 'false'
+
+
+    - name: Build .NET Core/5+ solution with Razor support
+      if: ${{ inputs.solution_isFramework == 'false' }}
+      shell: powershell
+      run: |
+        Write-Host "🔧 CodeQL Autobuild failed. Building .NET Core/5+ solution manually with Razor support..." -ForegroundColor Cyan
+        Write-Host "Solution: ${{ inputs.solution_path }}" -ForegroundColor Yellow
+        
+        # Limpiar outputs anteriores
+        Write-Host "`n🧹 Cleaning previous build outputs..."
+        dotnet clean ${{ inputs.solution_path }} --configuration Release
+        
+        # Limpiar carpetas obj y bin manualmente
+        Get-ChildItem -Path . -Include bin,obj -Recurse -Directory | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        
+        Write-Host "`n🔄 Restoring dependencies..."
+        dotnet restore ${{ inputs.solution_path }} --disable-parallel
+        
+        Write-Host "`n🏗 Building solution with Razor optimizations..."
+        dotnet build ${{ inputs.solution_path }} `
+          --no-restore `
+          --configuration Release `
+          /p:UseSharedCompilation=false `
+          /p:RazorCompileOnBuild=false `
+          /p:RazorCompileOnPublish=false `
+          /p:UseRazorBuildServer=false `
+          /p:EmitCompilerGeneratedFiles=true `
+          /p:CompilerGeneratedFilesOutputPath="$(pwd)\generated" `
+          /maxcpucount:1
+        
+        Write-Host "`n✅ Solution built successfully for CodeQL analysis!" -ForegroundColor Green

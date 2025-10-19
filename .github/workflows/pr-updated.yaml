@@ -19,10 +19,14 @@ on:
               description: "Lista de lenguajes soportados por CodeQL (Separados por coma)"
               required: true
               type: string
-          # isTest:
-          #     description: "Lista JSON con el path del test e indicando si es test"
-          #     required: true
-          #     type: string
+          solution_path_codeql:
+              description: "Ruta al archivo .sln principal para CodeQL Manual Build Fallback"
+              required: false
+              type: string
+          solution_isFramework_codeql:
+              description: "Indica si la solución usa .NET Framework (true) o .NET Core/5+ (false) para CodeQL Manual Build Fallback"
+              required: false
+              type: string
           
         
 jobs:
@@ -102,34 +106,34 @@ jobs:
           isTest: true
 
   #Build and Run App en Docker
-  # docker-set-up:
-  #   runs-on:
-  #     group: DAST
-  #   needs: [detect-framework, build-projects]
-  #   strategy:
-  #     matrix:
-  #       target: ${{ fromJSON(inputs.docker_targets) }}
-  #   steps:
-  #     - uses: actions/checkout@v4
+  docker-set-up:
+    runs-on:
+      group: DAST
+    needs: [detect-framework, build-projects]
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.docker_targets) }}
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Switch Docker Engine if needed
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
-  #       with:
-  #         isFramework: ${{ needs.detect-framework.outputs.hasFramework}}
+      - name: Switch Docker Engine if needed
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
+        with:
+          isFramework: ${{ needs.detect-framework.outputs.hasFramework}}
 
-  #     - name: Build & Run Docker
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
-  #       with:
-  #         image_name: ${{ matrix.target.image_name}}
-  #         container_name: ${{ matrix.target.container_name}}
-  #         dockerfile: ${{ matrix.target.dockerfile}}
-  #         host_port: ${{ matrix.target.host_port}}
-  #         container_port: ${{ matrix.target.container_port}}
+      - name: Build & Run Docker
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
+        with:
+          image_name: ${{ matrix.target.image_name}}
+          container_name: ${{ matrix.target.container_name}}
+          dockerfile: ${{ matrix.target.dockerfile}}
+          host_port: ${{ matrix.target.host_port}}
+          container_port: ${{ matrix.target.container_port}}
 
   codeql-analysis:
     runs-on:
       group: DAST
-    #needs: docker-set-up
+    needs: docker-set-up
     permissions:
       actions: read
       contents: read
@@ -151,16 +155,15 @@ jobs:
         uses: github/codeql-action/autobuild@v3
         env:
           NODE_TLS_REJECT_UNAUTHORIZED: '0'
-        #continue-on-error: true
+        continue-on-error: true
 
-      # # 🪄 Llamar composite si el autobuild falla
-      # - name: Manual build fallback
-      #   if: ${{ steps.autobuild.outcome == 'failure' }}
-      #   uses: PruebaActions/WorkFlows-Templates/.github/actions/manual-build-fallback@main
-      #   with:
-      #     language: ${{ matrix.project.language }}
-      #     project_path: ${{ matrix.project.path }}
-      #     isFramework: ${{ matrix.project.isFramework }}
+      #  🪄 Llamar composite si el autobuild falla
+      - name: Manual build fallback
+        if: ${{ steps.autobuild.outcome == 'failure' }}
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/manual-build-fallback@main
+        with:
+          solution_path: ${{ inputs.solution_path_codeql }}
+          solution_isFramework: ${{ inputs.solution_isFramework_codeql }}
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
@@ -190,24 +193,24 @@ jobs:
 
 
   #Cleanup y retorno a Linux containers
-  # delete-container:
-  #   runs-on:
-  #     group: DAST
-  #   needs: dast-scan
-  #   strategy:
-  #     matrix:
-  #       target: ${{ fromJSON(inputs.docker_targets) }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: PruebaActions/WorkFlows-Templates/.github/actions/stop-and-remove-docker@main
-  #       with: 
-  #         image_name: ${{ matrix.target.image_name }}
-  #         container_name: ${{ matrix.target.container_name }}
+  delete-container:
+    runs-on:
+      group: DAST
+    needs: dast-scan
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.docker_targets) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PruebaActions/WorkFlows-Templates/.github/actions/stop-and-remove-docker@main
+        with: 
+          image_name: ${{ matrix.target.image_name }}
+          container_name: ${{ matrix.target.container_name }}
 
-  #     - name: Switch Back to Linux Engine (always)
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
-  #       with:
-  #         isFramework: 'false'
+      - name: Switch Back to Linux Engine (always)
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
+        with:
+          isFramework: 'false'
 
 
 
