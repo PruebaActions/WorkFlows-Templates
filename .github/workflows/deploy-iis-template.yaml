@@ -148,14 +148,25 @@ jobs:
           New-Item -ItemType Directory -Force -Path $target | Out-Null
           $cmd = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
 
-          & $cmd -verb:sync `
-                 -source:contentPath:"$publishDir" `
-                 -dest:contentPath:"$target",computerName=localhost `
-                 -enableRule:AppOffline `
-                 -retryAttempts:3 `
-                 -allowUntrusted
+          Write-Host "🚀 Deploying files from '$publishDir' to '$target'"
 
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # Aseguramos que las rutas sean absolutas y válidas
+          $publishDir = [System.IO.Path]::GetFullPath($publishDir)
+          $target = [System.IO.Path]::GetFullPath($target)
+
+          # Ejecutar msdeploy correctamente con rutas escapadas
+          & "$cmd" -verb:sync `
+            "-source:contentPath='$publishDir'" `
+            "-dest:contentPath='$target',computerName='localhost'" `
+            -enableRule:AppOffline `
+            -retryAttempts:3 `
+            -allowUntrusted
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ msdeploy failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
 
       # 🩺 Health Check del sitio
       - name: Health check
