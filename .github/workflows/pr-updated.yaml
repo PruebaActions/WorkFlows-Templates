@@ -58,20 +58,20 @@ jobs:
 
       - name: Build Vue.js project
         if: ${{ matrix.project.language == 'javascript' }}
-        uses:  PruebaActions/WorkFlows-Templates/.github/actions/build-vue@Production
+        uses:  PruebaActions/WorkFlows-Templates/.github/actions/build-vue@main
         with:
           project_path: ${{ matrix.project.path }}
 
       - name: Build .NET Framework app
         if: ${{ matrix.project.language == 'csharp' && matrix.project.isFramework == 'true' }}
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@Production
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
         with:
           solution_path: ${{ matrix.project.path }}
           isTest: false
 
       - name: Build .NET Core o superior
         if: ${{ matrix.project.language == 'csharp' && matrix.project.isFramework == 'false' }}
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@Production
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
         with:
           project_path: ${{ matrix.project.path }}
           isTest: false
@@ -89,14 +89,14 @@ jobs:
 
       - name: Run .NET Framework tests
         if: ${{ matrix.test.language == 'csharp' && matrix.test.isFramework == 'true' }}
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@Production
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
         with:
           solution_path: ${{ matrix.test.path }}
           isTest: true
 
       - name: Run .NET Core o superior tests
         if: ${{ matrix.test.language == 'csharp' && matrix.test.isFramework == 'false' }}
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@Production
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
         with:
           project_path: ${{ matrix.test.path }}
           isTest: true
@@ -113,12 +113,12 @@ jobs:
   #     - uses: actions/checkout@v4
 
   #     - name: Switch Docker Engine if needed
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@Production
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
   #       with:
   #         isFramework: ${{ needs.detect-framework.outputs.hasFramework}}
 
   #     - name: Build & Run Docker
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@Production
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
   #       with:
   #         image_name: ${{ matrix.target.image_name}}
   #         container_name: ${{ matrix.target.container_name}}
@@ -156,7 +156,7 @@ jobs:
       # # 🪄 Llamar composite si el autobuild falla
       # - name: Manual build fallback
       #   if: ${{ steps.autobuild.outcome == 'failure' }}
-      #   uses: PruebaActions/WorkFlows-Templates/.github/actions/manual-build-fallback@Production
+      #   uses: PruebaActions/WorkFlows-Templates/.github/actions/manual-build-fallback@main
       #   with:
       #     language: ${{ matrix.project.language }}
       #     project_path: ${{ matrix.project.path }}
@@ -179,7 +179,7 @@ jobs:
   #     - uses: actions/checkout@v4
 
   #     - name: Run OWASP ZAP Baseline Scan
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/dast-scan@Production
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/dast-scan@main
   #       with:
   #         container_name: ${{ matrix.target.container_name }}
   #         wsl_distro: "OracleLinux_9_5"
@@ -199,13 +199,13 @@ jobs:
   #       target: ${{ fromJSON(inputs.docker_targets) }}
   #   steps:
   #     - uses: actions/checkout@v4
-  #     - uses: PruebaActions/WorkFlows-Templates/.github/actions/stop-and-remove-docker@Production
+  #     - uses: PruebaActions/WorkFlows-Templates/.github/actions/stop-and-remove-docker@main
   #       with: 
   #         image_name: ${{ matrix.target.image_name }}
   #         container_name: ${{ matrix.target.container_name }}
 
   #     - name: Switch Back to Linux Engine (always)
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@Production
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
   #       with:
   #         isFramework: 'false'
 
