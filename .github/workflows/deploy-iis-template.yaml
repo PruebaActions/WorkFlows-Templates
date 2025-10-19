@@ -43,58 +43,46 @@ jobs:
         uses: actions/checkout@v4
 
       # 🧱 Compilar y publicar según el tipo de framework
-      - name: Build and Publish
+      - name: Build and Publish (.NET Framework)
         id: build
         shell: powershell
         run: |
+          Write-Host "🏗️ Searching for web project inside solution..."
+          $solutionDir = Split-Path "${{ inputs.solution_path }}"
           $publishDir = "$env:GITHUB_WORKSPACE\publish"
           if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
 
-          $framework = "${{ inputs.framework_type }}"
-          Write-Host "Detected framework from input: $framework"
+          # Detectar el proyecto web (el que contiene web.config)
+          $webProject = Get-ChildItem -Path $solutionDir -Filter "*.csproj" -Recurse |
+                        Where-Object { Test-Path (Join-Path $_.Directory.FullName "web.config") } |
+                        Select-Object -First 1
 
-          if ($framework -eq "netframework") {
-            Write-Host "🧱 Building ASP.NET Framework app..."
-            
-            # 📦 Restaurar paquetes NuGet
-            Write-Host "Restoring NuGet packages..."
-            nuget restore "${{ inputs.solution_path }}" -NonInteractive -Verbosity normal
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "❌ NuGet restore failed."
-              exit 1
-            }
-
-            # 🚀 Compilar con MSBuild
-            Write-Host "Running MSBuild..."
-            msbuild "${{ inputs.solution_path }}" `
-              /p:Configuration=Release `
-              /p:DeployOnBuild=true `
-              /p:WebPublishMethod=FileSystem `
-              /p:DeleteExistingFiles=False `
-              /p:PublishUrl="$publishDir" `
-              /verbosity:minimal `
-              /t:Build
-
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "❌ MSBuild build failed."
-              exit 1
-            }
-
-          } elseif ($framework -eq "netcore") {
-            Write-Host "🧱 Building .NET (Core/5+) app..."
-            dotnet restore "${{ inputs.solution_path }}"
-            $projects = Get-ChildItem -Path (Split-Path "${{ inputs.solution_path }}") -Filter "*.csproj" -Recurse
-            foreach ($proj in $projects) {
-              dotnet publish $proj.FullName --configuration Release --output "$publishDir\$($proj.BaseName)"
-            }
-          } else {
-            Write-Host "❌ Invalid framework_type. Must be 'netframework' or 'netcore'."
+          if (-not $webProject) {
+            Write-Host "❌ No se encontró ningún proyecto web con web.config"
             exit 1
           }
 
-          Write-Host "✅ Build and publish completed at: $publishDir"
+          Write-Host "🌐 Web project detected: $($webProject.FullName)"
+
+          # Restaurar NuGet packages
+          Write-Host "📦 Restoring NuGet packages..."
+          nuget restore "${{ inputs.solution_path }}" -NonInteractive
+
+          # Publicar el proyecto web directamente
+          Write-Host "🚀 Publishing web project..."
+          msbuild $webProject.FullName `
+            /p:Configuration=Release `
+            /p:DeployOnBuild=true `
+            /p:WebPublishMethod=FileSystem `
+            /p:DeleteExistingFiles=False `
+            /p:PublishUrl="$publishDir" `
+            /verbosity:minimal
+
+          Write-Host "✅ Build and publish completed."
+          Write-Host "📂 Files published to: $publishDir"
           Get-ChildItem $publishDir -Recurse | Select-Object FullName
+
 
 
 
