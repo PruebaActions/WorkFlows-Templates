@@ -57,12 +57,27 @@ jobs:
           if ($framework -eq "netframework") {
             Write-Host "🧱 Building ASP.NET Framework app with MSBuild..."
             $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
+            $nugetPath = "C:\Tools\nuget\nuget.exe"
 
             if (-not (Test-Path $msbuild)) {
               Write-Host "❌ MSBuild not found at $msbuild"
               exit 1
             }
+            if (-not (Test-Path $nugetPath)) {
+              Write-Host "❌ nuget.exe not found at $nugetPath"
+              exit 1
+            }
 
+            # 🔹 Restaurar paquetes NuGet
+            Write-Host "📦 Restoring NuGet packages..."
+            & $nugetPath restore "${{ inputs.solution_path }}" -NonInteractive -Verbosity detailed
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "❌ NuGet restore failed."
+              exit 1
+            }
+
+            # 🔹 Compilar con MSBuild
+            Write-Host "🚀 Starting MSBuild..."
             & $msbuild "${{ inputs.solution_path }}" `
               /p:Configuration=Release `
               /p:DeployOnBuild=true `
@@ -72,8 +87,14 @@ jobs:
               /verbosity:minimal `
               /t:Build
 
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "❌ MSBuild build failed."
+              exit 1
+            }
+
           } elseif ($framework -eq "netcore") {
             Write-Host "🧱 Building .NET (Core/5+) app..."
+            dotnet restore "${{ inputs.solution_path }}"
             $projects = Get-ChildItem -Path (Split-Path "${{ inputs.solution_path }}") -Filter "*.csproj" -Recurse
             foreach ($proj in $projects) {
               dotnet publish $proj.FullName --configuration Release --output "$publishDir\$($proj.BaseName)"
@@ -85,6 +106,7 @@ jobs:
 
           Write-Host "✅ Build and publish completed at: $publishDir"
           Get-ChildItem $publishDir -Recurse | Select-Object FullName
+
 
       # 🗓️ Generar carpeta versionada (APP-YYYY-MM-DD-#)
       - name: Generate deployment version
