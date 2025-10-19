@@ -15,6 +15,10 @@ on:
       iis_root_path:
         required: true
         type: string
+      framework_type:   # 👈 NUEVO parámetro
+        required: true
+        type: string
+        description: "Tipo de framework: netframework o netcore"
       has_sql_scripts:
         required: false
         type: boolean
@@ -32,26 +36,13 @@ jobs:
   deploy_to_iis:
     name: "Build and Deploy to IIS"
     runs-on:
-      group: DAST  # Tu grupo de self-hosted runners Windows con IIS
+      group: DAST
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🔍 Detectar si es .NET Framework o .NET Core/5+
-      - name: Detect .NET version
-        id: detect
-        shell: powershell
-        run: |
-          $sln = "${{ inputs.solution_path }}"
-          $content = Get-Content $sln -Raw
-          if ($content -match "TargetFrameworkVersion") {
-            echo "framework=netframework" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          } else {
-            echo "framework=netcore" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          }
-
-      # 🧱 Compilar y publicar según el framework
+      # 🧱 Compilar y publicar según el tipo de framework
       - name: Build and Publish
         id: build
         shell: powershell
@@ -60,10 +51,13 @@ jobs:
           if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
 
-          if ("${{ steps.detect.outputs.framework }}" -eq "netframework") {
-            Write-Host "🧱 Building ASP.NET Framework app..."
+          $framework = "${{ inputs.framework_type }}"
+          Write-Host "Detected framework from input: $framework"
+
+          if ($framework -eq "netframework") {
+            Write-Host "🧱 Building ASP.NET Framework app with MSBuild..."
             $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
-            
+
             if (-not (Test-Path $msbuild)) {
               Write-Host "❌ MSBuild not found at $msbuild"
               exit 1
@@ -75,15 +69,22 @@ jobs:
               /p:WebPublishMethod=FileSystem `
               /p:DeleteExistingFiles=False `
               /p:PublishUrl="$publishDir" `
-              /verbosity:minimal
+              /verbosity:minimal `
+              /t:Build
 
-          } else {
+          } elseif ($framework -eq "netcore") {
             Write-Host "🧱 Building .NET (Core/5+) app..."
             $projects = Get-ChildItem -Path (Split-Path "${{ inputs.solution_path }}") -Filter "*.csproj" -Recurse
             foreach ($proj in $projects) {
               dotnet publish $proj.FullName --configuration Release --output "$publishDir\$($proj.BaseName)"
             }
+          } else {
+            Write-Host "❌ Invalid framework_type. Must be 'netframework' or 'netcore'."
+            exit 1
           }
+
+          Write-Host "✅ Build and publish completed at: $publishDir"
+          Get-ChildItem $publishDir -Recurse | Select-Object FullName
 
       # 🗓️ Generar carpeta versionada (APP-YYYY-MM-DD-#)
       - name: Generate deployment version
