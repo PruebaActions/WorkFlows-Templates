@@ -5,7 +5,7 @@ inputs:
   isTest:
     description: "Confirmar si la app tiene tests para ejecutarlos"
     required: true
-    type: bool
+    type: string
   solution_path:
     description: "Ruta al .sln de la solución"
     required: true
@@ -14,17 +14,22 @@ runs:
   using: "composite"
   steps:      
     - name: Restore NuGet packages
+      if: ${{ inputs.isTest == 'false' }}
       shell: powershell
       run: |
+        Write-Host "🔄 Restoring NuGet packages for: ${{ inputs.solution_path }}"
         nuget restore ${{ inputs.solution_path }}
 
     - name: Build the app with MSBuild
+      if: ${{ inputs.isTest == 'false' }}
       shell: powershell
       run: |
+        Write-Host "🏗 Building solution: ${{ inputs.solution_path }}"
         msbuild ${{ inputs.solution_path }} /p:Configuration=Release
 
     - name: Run tests
-      if: ${{ inputs.isTest == true }}
+      if: ${{ inputs.isTest == 'true' }}
       shell: powershell
       run: |
+        Write-Host "🧪 Running tests for: ${{ inputs.solution_path }}"
         vstest.console.exe **\*test*.dll
