@@ -150,22 +150,23 @@ jobs:
 
           Write-Host "🚀 Deploying files from '$publishDir' to '$target'"
 
-          # Aseguramos que las rutas sean absolutas y válidas
           $publishDir = [System.IO.Path]::GetFullPath($publishDir)
           $target = [System.IO.Path]::GetFullPath($target)
 
-          # Ejecutar msdeploy correctamente con rutas escapadas
+          # 💡 Ejecutar msdeploy en modo local (sin Deployment Agent)
           & "$cmd" -verb:sync `
-            "-source:contentPath='$publishDir'" `
-            "-dest:contentPath='$target'" `
+            "-source:contentPath=$publishDir" `
+            "-dest:contentPath=$target" `
             -enableRule:AppOffline `
             -retryAttempts:3 `
-            -allowUntrusted
+            -allowUntrusted `
+            -verbose
 
           if ($LASTEXITCODE -ne 0) {
             Write-Host "❌ msdeploy failed with exit code $LASTEXITCODE"
             exit 1
           }
+
 
 
       # 🩺 Health Check del sitio
