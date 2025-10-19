@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
           project_paths:
-              description: "Lista JSON de proyectos a compilar (path y isFramework)"
+              description: "Lista JSON de proyectos a compilar (path, isFramework y language)"
               required: true
               type: string
           test_paths:
@@ -67,14 +67,14 @@ jobs:
           project_path: ${{ matrix.project.path }}
 
       - name: Build .NET Framework app
-        if: ${{ matrix.project.isFramework == 'true' }}
+        if: ${{ matrix.project.language == 'csharp' && matrix.project.isFramework == 'true' }}
         uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
         with:
           solution_path: ${{ matrix.project.path }}
           isTest: false
 
       - name: Build .NET Core o superior
-        if: ${{ matrix.project.isFramework == 'false' }}
+        if: ${{ matrix.project.language == 'csharp' && matrix.project.isFramework == 'false' }}
         uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
         with:
           project_path: ${{ matrix.project.path }}
