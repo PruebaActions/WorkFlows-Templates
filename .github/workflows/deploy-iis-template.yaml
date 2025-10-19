@@ -157,7 +157,7 @@ jobs:
           # Ejecutar msdeploy correctamente con rutas escapadas
           & "$cmd" -verb:sync `
             "-source:contentPath='$publishDir'" `
-            "-dest:contentPath='$target',computerName='localhost'" `
+            "-dest:contentPath='$target'" `
             -enableRule:AppOffline `
             -retryAttempts:3 `
             -allowUntrusted
