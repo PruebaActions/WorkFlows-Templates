@@ -23,7 +23,7 @@ jobs:
           Write-Host "restoring packages at path: ${{ inputs.solution_path }}"
           nuget restore ${{ inputs.solution_path }}
           Write-Host "Building project at path: ${{ inputs.project_path }}"
-          msbuild ${{ inputs.project_path }} /p:Configuration=Release /p:DeployOnBuild=true /p:PublishProfile=FolderProfile /p:PublishDir="publish\"
+          msbuild ${{ inputs.project_path }} /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishUrl="$env:GITHUB_WORKSPACE\publish" /p:DeleteExistingFiles=False /verbosity:minimal
 
 
       - name: Create Artifact
