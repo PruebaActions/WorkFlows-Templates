@@ -48,7 +48,7 @@ jobs:
 
   downloading_artifact:
     needs: building_project
-    runs-on: [self-hosted, windows, x64, klk, iis]
+    runs-on: [self-hosted, windows, x64, iis]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
