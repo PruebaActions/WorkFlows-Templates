@@ -1,0 +1,28 @@
+name: Probando la creacion de artifacts
+
+on:
+  workflow_call:
+    inputs:
+      project_path:
+        required: true
+        type: string
+
+jobs:
+  building_project:
+    runs-on: KLK
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Project
+        shell: powershell
+        run: |
+          Write-Host "Building project at path: ${{ inputs.project_path }}"
+          msbuild ${{ inputs.project_path }} /p:Configuration=Release /p:DeployOnBuild=true /p:PublishProfile=FolderProfile /p:PublishDir="publish\"
+
+
+      - name: Create Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: built-project
+          path: publish/
