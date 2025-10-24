@@ -90,7 +90,7 @@ jobs:
             -source:contentPath="$publishPath" `
             -dest:contentPath="C:\inetpub\wwwroot\artifact" `
             -enableRule:AppOffline `
-            -skip:FilePath=\\web\.config$ `
+            -skip:FilePath="\\web\.config$" `
             -useCheckSum `
             -allowUntrusted `
             -enableRule:DoNotDeleteRule `
