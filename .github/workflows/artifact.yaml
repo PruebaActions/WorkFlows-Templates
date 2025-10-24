@@ -89,7 +89,6 @@ jobs:
             -verb:sync `
             -source:contentPath="$publishPath" `
             -dest:contentPath="C:\inetpub\wwwroot\artifact" `
-            -enableRule:AppOffline `
             -skip:FilePath="\\web\.config$" `
             -useCheckSum `
             -allowUntrusted `
