@@ -66,25 +66,25 @@ jobs:
       - name: Deploy to IIS using Web Deploy
         shell: powershell
         run: |
-          # 🧩 Ruta local del artifact descargado
+          # Ruta local del artifact descargado
           $publishPath = "$env:GITHUB_WORKSPACE\artifact"
 
-          # 🧩 Ruta de instalación de msdeploy
+          # Ruta de instalación de msdeploy
           $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
           if (-Not (Test-Path $msdeploy)) {
             $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
           }
 
           if (-Not (Test-Path $msdeploy)) {
-            Write-Host "❌ msdeploy.exe not found. Please install Web Deploy on this server."
+            Write-Host "msdeploy.exe not found. Please install Web Deploy on this server."
             exit 1
           }
 
-          Write-Host "✅ Using msdeploy at: $msdeploy"
-          Write-Host "📦 Deploying from: $publishPath"
-          Write-Host "📁 Destination: C:\inetpub\wwwroot\artifact"
+          Write-Host "Using msdeploy at: $msdeploy"
+          Write-Host "Deploying from: $publishPath"
+          Write-Host "Destination: C:\inetpub\wwwroot\artifact"
 
-          # 🚀 Ejecutar la sincronización
+          # Ejecutar la sincronización
           & $msdeploy `
             -verb:sync `
             -source:contentPath="$publishPath" `
@@ -98,10 +98,10 @@ jobs:
             -verbose
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "❌ Deployment failed with exit code $LASTEXITCODE"
+            Write-Host "Deployment failed with exit code $LASTEXITCODE"
             exit $LASTEXITCODE
           } else {
-            Write-Host "✅ Deployment completed successfully."
+            Write-Host "Deployment completed successfully."
           }
 
 
