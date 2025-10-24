@@ -24,8 +24,10 @@ jobs:
           nuget restore ${{ inputs.solution_path }}
           Write-Host "Building project at path: ${{ inputs.project_path }}"
           msbuild ${{ inputs.project_path }} `
-            /t:WebPublish `
+            /t:Rebuild `
             /p:Configuration=Release `
+            /p:PlatformTarget=AnyCPU `
+            /p:Platform="AnyCPU" `
             /p:WebPublishMethod=FileSystem `
             /p:PublishUrl="$env:GITHUB_WORKSPACE\publish" `
             /p:DeleteExistingFiles=False `
