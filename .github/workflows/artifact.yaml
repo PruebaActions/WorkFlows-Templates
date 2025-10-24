@@ -88,7 +88,7 @@ jobs:
           & $msdeploy `
             -verb:sync `
             -source:contentPath="$publishPath" `
-            -dest:contentPath="C:\inetpub\wwwroot\artifact",computerName="localhost",authType="NTLM" `
+            -dest:contentPath="C:\inetpub\wwwroot\artifact" `
             -allowUntrusted `
             -enableRule:DoNotDeleteRule `
             -retryAttempts:3 `
