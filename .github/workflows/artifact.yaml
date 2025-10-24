@@ -26,7 +26,6 @@ jobs:
           msbuild ${{ inputs.project_path }} `
             /t:WebPublish `
             /p:Configuration=Release `
-            /p:Platform="Any CPU" `
             /p:WebPublishMethod=FileSystem `
             /p:PublishUrl="$env:GITHUB_WORKSPACE\publish" `
             /p:DeleteExistingFiles=False `
