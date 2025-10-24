@@ -20,8 +20,9 @@ jobs:
       - name: Build Project
         shell: powershell
         run: |
-          Write-Host "Building project at path: ${{ inputs.project_path }}"
+          Write-Host "restoring packages at path: ${{ inputs.solution_path }}"
           nuget restore ${{ inputs.solution_path }}
+          Write-Host "Building project at path: ${{ inputs.project_path }}"
           msbuild ${{ inputs.project_path }} /p:Configuration=Release /p:DeployOnBuild=true /p:PublishProfile=FolderProfile /p:PublishDir="publish\"
 
 
