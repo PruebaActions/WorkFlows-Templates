@@ -39,12 +39,12 @@ jobs:
           Get-ChildItem "$env:GITHUB_WORKSPACE\publish" -Recurse | Select-Object FullName
 
 
-          
+
       - name: Create Artifact
         uses: actions/upload-artifact@v4
         with:
           name: built-project
-          path: ${{ env.GITHUB_WORKSPACE }}\publish\
+          path: ${{ github.workspace }}/publish/
 
 
 
