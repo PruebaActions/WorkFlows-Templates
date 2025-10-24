@@ -9,7 +9,7 @@ on:
 
 jobs:
   building_project:
-    runs-on: KLK
+    runs-on: [self-hosted, windows, x64, klk]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,3 +26,11 @@ jobs:
         with:
           name: built-project
           path: publish/
+
+
+
+
+
+
+
+          
