@@ -59,5 +59,47 @@ jobs:
           name: built-project
           path: ${{ github.workspace }}/artifact/
 
+  deploy_to_iis:
+    needs: downloading_artifact
+    runs-on: [self-hosted, windows, x64, iis]
+    steps:
+      - name: Deploy to IIS using Web Deploy
+        shell: powershell
+        run: |
+          # 🧩 Ruta local del artifact descargado
+          $publishPath = "$env:GITHUB_WORKSPACE\artifact"
+
+          # 🧩 Ruta de instalación de msdeploy
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          if (-Not (Test-Path $msdeploy)) {
+            $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          }
+
+          if (-Not (Test-Path $msdeploy)) {
+            Write-Host "❌ msdeploy.exe not found. Please install Web Deploy on this server."
+            exit 1
+          }
+
+          Write-Host "✅ Using msdeploy at: $msdeploy"
+          Write-Host "📦 Deploying from: $publishPath"
+          Write-Host "📁 Destination: C:\inetpub\wwwroot\artifact"
+
+          # 🚀 Ejecutar la sincronización
+          & $msdeploy `
+            -verb:sync `
+            -source:contentPath="$publishPath" `
+            -dest:contentPath="C:\inetpub\wwwroot\artifact",computerName="localhost",authType="NTLM" `
+            -allowUntrusted `
+            -enableRule:DoNotDeleteRule `
+            -retryAttempts:3 `
+            -verbose
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Deployment failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          } else {
+            Write-Host "✅ Deployment completed successfully."
+          }
+
 
           
