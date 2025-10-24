@@ -24,10 +24,8 @@ jobs:
           nuget restore ${{ inputs.solution_path }}
           Write-Host "Building project at path: ${{ inputs.project_path }}"
           msbuild ${{ inputs.project_path }} `
-            /t:Rebuild `
+            /t:WebPublish `
             /p:Configuration=Release `
-            /p:PlatformTarget=AnyCPU `
-            /p:Platform="AnyCPU" `
             /p:WebPublishMethod=FileSystem `
             /p:PublishUrl="$env:GITHUB_WORKSPACE\publish" `
             /p:DeleteExistingFiles=False `
@@ -48,10 +46,18 @@ jobs:
           name: built-project
           path: ${{ github.workspace }}/publish/
 
-
-
-
-
+  downloading_artifact:
+    needs: building_project
+    runs-on: [self-hosted, windows, x64, klk, iis]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: built-project
+          path: ${{ github.workspace }}/artifact/
 
 
           
