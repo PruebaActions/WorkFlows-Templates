@@ -32,11 +32,19 @@ jobs:
             /verbosity:minimal
 
 
+      - name: Debug paths
+        shell: powershell
+        run: |
+          Write-Host "GITHUB_WORKSPACE: $env:GITHUB_WORKSPACE"
+          Get-ChildItem "$env:GITHUB_WORKSPACE\publish" -Recurse | Select-Object FullName
+
+
+          
       - name: Create Artifact
         uses: actions/upload-artifact@v4
         with:
           name: built-project
-          path: E:\actions-runner\_work\UVC.Websites\UVC.Websites\publish\
+          path: ${{ env.GITHUB_WORKSPACE }}\publish\
 
 
 
