@@ -75,9 +75,6 @@ jobs:
           Write-Host "Deploying from: $publishPath"
           Write-Host "Destination: C:\inetpub\wwwroot\artifact"
 
-
-          Stop-Service -Name MsDepSvc -Force -ErrorAction SilentlyContinue
-
           # Ejecutar la sincronización
           & $msdeploy `
             -verb:sync `
@@ -90,8 +87,6 @@ jobs:
             -enableRule:DoNotDeleteRule `
             -retryAttempts:3 `
             -verbose
-
-          Start-Service -Name MsDepSvc -ErrorAction SilentlyContinue
 
           if ($LASTEXITCODE -ne 0) {
             Write-Host "Deployment failed with exit code $LASTEXITCODE"
