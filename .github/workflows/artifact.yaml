@@ -31,15 +31,6 @@ jobs:
             /p:DeleteExistingFiles=False `
             /verbosity:minimal
 
-
-      - name: Debug paths
-        shell: powershell
-        run: |
-          Write-Host "GITHUB_WORKSPACE: $env:GITHUB_WORKSPACE"
-          Get-ChildItem "$env:GITHUB_WORKSPACE\publish" -Recurse | Select-Object FullName
-
-
-
       - name: Create Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -89,6 +80,7 @@ jobs:
             -verb:sync `
             -source:contentPath="$publishPath" `
             -dest:contentPath="C:\inetpub\wwwroot\artifact" `
+            -skip:FilePath=\\web\.config$ `
             -useCheckSum `
             -allowUntrusted `
             -enableRule:DoNotDeleteRule `
@@ -101,6 +93,8 @@ jobs:
           } else {
             Write-Host "Deployment completed successfully."
           }
+
+          
 
 
           
