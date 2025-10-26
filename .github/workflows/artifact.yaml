@@ -79,7 +79,7 @@ jobs:
           & $msdeploy `
             -verb:sync `
             -source:contentPath="$publishPath" `
-            -dest:contentPath="C:\inetpub\wwwroot\artifact" `
+            -dest:contentPath="C:\inetpub\wwwroot\artifact", computerName="localhost" `
             -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
             -useCheckSum `
             -allowUntrusted `
