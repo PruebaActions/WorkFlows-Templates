@@ -83,6 +83,7 @@ jobs:
             -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
             -useCheckSum `
             -allowUntrusted `
+            -enableRule:AppOffline `
             -enableRule:DoNotDeleteRule `
             -retryAttempts:3 `
             -verbose
