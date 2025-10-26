@@ -80,7 +80,7 @@ jobs:
             -verb:sync `
             -source:contentPath="$publishPath" `
             -dest:contentPath="C:\inetpub\wwwroot\artifact" `
-            -skip:FilePath=\\web\.config$ `
+            -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
             -useCheckSum `
             -allowUntrusted `
             -enableRule:DoNotDeleteRule `
