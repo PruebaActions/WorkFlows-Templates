@@ -39,7 +39,7 @@ jobs:
         if: ${{ inputs.project_type != 'framework' }}
         shell: powershell
         run: |
-          dotnet restores ${{ inputs.solution_path }} --verbosity minimal
+          dotnet restore ${{ inputs.solution_path }} --verbosity minimal
           dotnet build ${{ inputs.solution_path }} --configuration Release --no-restore --verbosity minimal
           
           Write-Host "Building project at path: ${{ inputs.project_path }}"
