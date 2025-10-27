@@ -41,14 +41,14 @@ jobs:
         shell: powershell
         run: |
           Write-Host "restoring packages at path: ${{ inputs.solution_path }}"
-          dotnet restore "${{ inputs.project_path }}" --verbosity minimal
+          dotnet restore ${{ inputs.project_path }} --verbosity minimal
 
           Write-Host "⚙️ Building project in Release mode"
-          dotnet build "${{ inputs.project_path }}" -c Release --no-restore --verbosity minimal
+          dotnet build ${{ inputs.project_path }} -c Release --no-restore --verbosity minimal
 
           Write-Host "📦 Publishing project to workspace/publish"
           $publishPath = "$env:GITHUB_WORKSPACE\publish"
-          dotnet publish "${{ inputs.project_path }}" -c Release -o $publishPath --no-build --verbosity minimal
+          dotnet publish ${{ inputs.project_path }} -c Release -o $publishPath --no-build --verbosity minimal
 
       - name: Create Artifact
         uses: actions/upload-artifact@v4
