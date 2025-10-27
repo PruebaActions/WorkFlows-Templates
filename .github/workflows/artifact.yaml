@@ -35,20 +35,17 @@ jobs:
             /p:DeleteExistingFiles=False `
             /verbosity:minimal
 
-
-      - name: Build .NET Project
+      - name: Build .NET Core/5+/6+ Project
         if: ${{ inputs.project_type != 'framework' }}
         shell: powershell
         run: |
-          Write-Host "restoring packages at path: ${{ inputs.project_path }}"
-          dotnet restore ${{ inputs.project_path }} --verbosity minimal
-
-          Write-Host "⚙️ Building project in Release mode"
-          dotnet build ${{ inputs.project_path }} -c Release --no-restore --verbosity minimal
-
-          Write-Host "📦 Publishing project to workspace/publish"
-          dotnet publish ${{ inputs.project_path }} -c Release -o "$env:GITHUB_WORKSPACE/publish" --no-build --verbosity minimal
-
+          dotnet restores ${{ inputs.solution_path }} --verbosity minimal
+          dotnet build ${{ inputs.solution_path }} --configuration Release --no-restore --verbosity minimal
+          
+          Write-Host "Building project at path: ${{ inputs.project_path }}"
+          dotnet publish ${{ inputs.project_path }} -c Release -o "$env:GITHUB_WORKSPACE\publish" --no-build --verbosity minimal
+      
+      
       - name: Create Artifact
         uses: actions/upload-artifact@v4
         with:
