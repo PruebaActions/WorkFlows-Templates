@@ -1,0 +1,145 @@
+name: "Local WebDeploy Incremental Test (Single Folder)"
+
+on:
+  workflow_call:
+    inputs:
+      project_path:
+        required: true
+        type: string
+      solution_path:
+        required: true
+        type: string
+      project_type:
+        required: true
+        type: string
+      runner_tag:
+        required: true
+        type: string
+      deploy_target_path:
+        required: true
+        type: string
+
+jobs:
+  build_project:
+    name: Build projects
+    runs-on:
+        group: Code-runners
+    steps:
+        - uses: actions/checkout@v4
+
+        - name: 🔨 Build project for release
+          uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/build-release-deploy@Production
+          with:
+            solution_path: ${{ inputs.solution_path }}
+            project_type: ${{ inputs.project_type }}
+            project_path: ${{ inputs.project_path }}
+        
+        - name: Create artifact
+          uses: actions/upload-artifact@v3
+          with:
+            name: built-project
+            path: ${{ github.workspace }}/publish/
+
+  # prepare_backup:
+  #   name: Create Backup of Current Version
+  #   #needs: build_project
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   outputs:
+  #     backup_folder: ${{ steps.create_backup.outputs.backup_folder }}
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+
+  #     - name: Create Dynamic Backup Folder
+  #       id: create_backup
+  #       shell: pwsh
+  #       run: |
+  #         $deployPath = "${{ inputs.deploy_target_path }}"
+  #         $backupRoot = "C:\backup"
+
+  #         if (!(Test-Path $backupRoot)) {
+  #           New-Item -ItemType Directory -Path $backupRoot | Out-Null
+  #         }
+
+  #         # Obtener el nombre base del proyecto desde el path destino
+  #         $rawName = Split-Path $deployPath -Leaf
+  #         $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
+
+  #         # Crear nombre versionado para el backup
+  #         $date = Get-Date -Format "yyyy-MM-dd"
+  #         $i = 1
+  #         while (Test-Path "$backupRoot\$siteName-$date-$i") { $i++ }
+  #         $backupFolder = "$backupRoot\$siteName-$date-$i"
+
+  #         Write-Host "Creating backup folder: $backupFolder"
+  #         New-Item -ItemType Directory -Path $backupFolder | Out-Null
+
+  #         # Copiar contenido actual del sitio IIS (si existe)
+  #         if (Test-Path $deployPath) {
+  #           Write-Host "📦 Copying existing deployment from: $deployPath"
+  #           Copy-Item "$deployPath\*" -Destination $backupFolder -Recurse -Force
+  #           Write-Host "Backup completed successfully!"
+  #         } else {
+  #           Write-Host "No existing deployment found to backup."
+  #         }
+
+  #         echo "backup_folder=$backupFolder" >> $env:GITHUB_OUTPUT
+  #         Write-Host "🎯 Backup path: $backupFolder"
+
+  deploy_to_iis:
+    name: Deploying to IIS using Web Deploy
+    needs: [build_project]
+    runs-on: [self-hosted, windows, x64, iis-dev]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v3
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: built-project
+          path: ${{ github.workspace }}/artifact/
+
+      - name: Deploy to IIS using Web Deploy
+        shell: powershell
+        run: |
+          # Ruta local del artifact descargado
+          $publishPath = "$env:GITHUB_WORKSPACE\artifact"
+
+          # Ruta de instalación de msdeploy
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          if (-Not (Test-Path $msdeploy)) {
+            $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          }
+
+          if (-Not (Test-Path $msdeploy)) {
+            Write-Host "msdeploy.exe not found. Please install Web Deploy on this server."
+            exit 1
+          }
+
+          Write-Host "Using msdeploy at: $msdeploy"
+          Write-Host "Deploying from: $publishPath"
+          Write-Host "Destination: C:\backup\Forms.Owin-2025-10-27-1"
+
+          # Ejecutar la sincronización
+          & $msdeploy `
+            -verb:sync `
+            -source:dirPath="$publishPath" `
+            -dest:dirPath="C:\backup\Forms.Owin-2025-10-27-1" `
+            -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
+            -useCheckSum `
+            -allowUntrusted `
+            -enableRule:AppOffline `
+            -enableRule:DoNotDeleteRule `
+            -retryAttempts:3 `
+            -verbose
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Deployment failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          } else {
+            Write-Host "Deployment completed successfully."
+          }
+
