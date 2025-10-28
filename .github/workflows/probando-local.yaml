@@ -58,24 +58,28 @@ jobs:
           $deployPath = "${{ matrix.deploy_target_path }}"
           $parentDir = Split-Path $deployPath -Parent
           $backupRoot = Join-Path $parentDir "backups"
-
+          
           if (!(Test-Path $backupRoot)) {
             New-Item -ItemType Directory -Path $backupRoot | Out-Null
           }
-
+          
           $rawName = Split-Path $deployPath -Leaf
           $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
           $date = Get-Date -Format "yyyy-MM-dd"
           $i = 1
-          while (Test-Path "$backupRoot\$siteName-$date-$i") { $i++ }
+          
+          while (Test-Path "$backupRoot\$siteName-$date-$i") { 
+            $i++ 
+          }
+          
           $backupFolder = "$backupRoot\$siteName-$date-$i"
-
+          
           Write-Host "📦 Creating backup folder: $backupFolder"
           New-Item -ItemType Directory -Path $backupFolder | Out-Null
-
+          
           if (Test-Path $deployPath) {
             Write-Host "📂 Copying from $deployPath → $backupFolder"
-            Copy-Item "$deployPath\*" -Destination $backupFolder -Recurse -Force
+            Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force
           } else {
             Write-Host "⚠️ No existing deployment found."
           }
