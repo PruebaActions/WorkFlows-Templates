@@ -53,7 +53,7 @@ jobs:
     steps:
       - name: "Create Dynamic Backup Folder"
         id: create_backup
-        shell: pwsh
+        shell: powershell
         run: |
           $deployPath = "${{ matrix.deploy_target_path }}"
           $parentDir = Split-Path $deployPath -Parent
@@ -101,7 +101,7 @@ jobs:
   #         path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
   #     - name: "Deploy to Test IIS Site"
-  #       shell: pwsh
+  #       shell: powershell
   #       run: |
   #         $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
   #         $siteTestPath = "${{ matrix.deploy_testing_path }}"
@@ -137,7 +137,7 @@ jobs:
   # run_e2e_tests:
   #   name: "🧪 Run E2E Tests"
   #   needs: deploy_to_site_test
-  #   if: ${{ inputs.e2e_tests_json != '' }}
+  #   if: ${{ github.ref == 'refs/heads/main' && inputs.e2e_tests_json != '' }}
   #   runs-on: ${{ fromJson(inputs.runner_tag) }}
   #   strategy:
   #     matrix:
@@ -145,7 +145,7 @@ jobs:
   #   steps:
   #     - uses: actions/checkout@v4
   #     - name: "Run Maven test"
-  #       shell: pwsh
+  #       shell: powershell
   #       run: |
   #         Write-Host "🧪 Running: ${{ matrix.test_command }}"
   #         Invoke-Expression "${{ matrix.test_command }}"
@@ -177,7 +177,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
       - name: "Deploy to IIS"
-        shell: pwsh
+        shell: powershell
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
           $destPath = "${{ matrix.deploy_target_path }}"
