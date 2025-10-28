@@ -1,0 +1,31 @@
+name: "Build and Publish Project"
+description: "Builds .NET or Vue.js projects for release and outputs to specified internal path"
+
+inputs:
+  solution_path:
+    required: true
+  project_path:
+    required: true
+  project_type:
+    required: true
+  output_path:
+    required: false
+    default: ${{ github.workspace }}/publish/${{ matrix.project_name }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build .NET framework Project
+      if: ${{ inputs.project_type == 'framework' }}
+      shell: powershell
+      run: |
+        Write-Host "restoring packages at path: ${{ inputs.solution_path }}"
+        nuget restore ${{ inputs.solution_path }}
+        Write-Host "Building project at path: ${{ inputs.project_path }}"
+        msbuild ${{ inputs.project_path }} `
+          /t:WebPublish `
+          /p:Configuration=Release `
+          /p:WebPublishMethod=FileSystem `
+          /p:PublishUrl="${{ inputs.output_path }}" `
+          /p:DeleteExistingFiles=False `
+          /verbosity:minimal
