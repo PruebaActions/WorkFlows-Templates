@@ -1,9 +1,9 @@
-name: "IIS WebDeploy Incremental with Matrix & Ordered Build"
+name: "IIS WebDeploy Incremental (Multi-Project with Subfolders)"
 
 on:
   workflow_call:
     inputs:
-      projects_json: # Lista de proyectos (1 o varios)
+      projects_json:
         required: true
         type: string
       runner_tag:
@@ -15,35 +15,36 @@ on:
 
 jobs:
   # =======================================
-  # 1️⃣ BUILD PROJECTS (ordered matrix)
+  # 1️⃣ BUILD PROJECTS
   # =======================================
   build_projects:
     name: "🔨 Build Projects"
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1 # Fuerza ejecución en orden secuencial (API → WEB)
+      max-parallel: 1
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Build with composite action"
+      - name: "Build with composite action (isolated output)"
         uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/build-release-deploy@Production
         with:
           solution_path: ${{ matrix.solution_path }}
           project_path: ${{ matrix.project_path }}
           project_type: ${{ matrix.project_type }}
-      
-      - name: "📦 Upload Artifact"
+          output_path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
+
+      - name: "📦 Upload Artifact (per project)"
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.project_name }}
-          path: ${{ github.workspace }}/publish/
+          path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
 
   # =======================================
-  # 2️⃣ BACKUP CURRENT DEPLOYMENT
+  # 2️⃣ CREATE BACKUP
   # =======================================
   prepare_backup:
-    name: "🗂️ Create Backups for Each Project"
+    name: "🗂️ Create Backup"
     needs: build_projects
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
@@ -55,17 +56,13 @@ jobs:
         shell: pwsh
         run: |
           $deployPath = "${{ matrix.deploy_target_path }}"
-          
-          # Obtener el nivel padre de la carpeta de versiones
           $parentDir = Split-Path $deployPath -Parent
           $backupRoot = Join-Path $parentDir "backups"
 
           if (!(Test-Path $backupRoot)) {
-            Write-Host "📁 Creating backups directory at: $backupRoot"
             New-Item -ItemType Directory -Path $backupRoot | Out-Null
           }
 
-          # Generar nombre versionado
           $rawName = Split-Path $deployPath -Leaf
           $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
           $date = Get-Date -Format "yyyy-MM-dd"
@@ -73,7 +70,7 @@ jobs:
           while (Test-Path "$backupRoot\$siteName-$date-$i") { $i++ }
           $backupFolder = "$backupRoot\$siteName-$date-$i"
 
-          Write-Host "📦 Creating backup: $backupFolder"
+          Write-Host "📦 Creating backup folder: $backupFolder"
           New-Item -ItemType Directory -Path $backupFolder | Out-Null
 
           if (Test-Path $deployPath) {
@@ -84,10 +81,10 @@ jobs:
           }
 
   # =======================================
-  # 3️⃣ DEPLOY TO TEST SITE (only if provided)
+  # 3️⃣ DEPLOY TO TEST SITE
   # =======================================
   deploy_to_site_test:
-    name: "🚀 Deploy to IIS test site"
+    name: "🚀 Deploy to IIS (Testing Site)"
     needs: build_projects
     if: ${{ contains(inputs.projects_json, 'deploy_testing_path') }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
@@ -96,15 +93,17 @@ jobs:
       max-parallel: 1
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+
+      - name: "⬇️ Download Artifact (specific project)"
+        uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.project_name }}
-          path: ${{ github.workspace }}/artifact/
+          path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
-      - name: "Deploy to test IIS site"
+      - name: "Deploy to Test IIS Site"
         shell: pwsh
         run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\artifact"
+          $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
           $siteTestPath = "${{ matrix.deploy_testing_path }}"
           $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
           if (-Not (Test-Path $msdeploy)) {
@@ -145,10 +144,10 @@ jobs:
           }
 
   # =======================================
-  # 5️⃣ DEPLOY TO IIS (PRODUCTION)
+  # 5️⃣ DEPLOY TO IIS (PROD)
   # =======================================
   deploy_to_iis:
-    name: "🚀 Deploy to IIS"
+    name: "🚀 Deploy to IIS (Production)"
     needs: [prepare_backup, run_e2e_tests]
     if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
@@ -157,20 +156,24 @@ jobs:
       max-parallel: 1
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+
+      - name: "⬇️ Download Artifact (specific project)"
+        uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.project_name }}
-          path: ${{ github.workspace }}/artifact/
+          path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
       - name: "Deploy to IIS"
         shell: pwsh
         run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\artifact"
+          $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
           $destPath = "${{ matrix.deploy_target_path }}"
           $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
           if (-Not (Test-Path $msdeploy)) { $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" }
 
           Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
+          Write-Host "📦 Source: $publishPath"
+
           & $msdeploy `
             -verb:sync `
             -source:dirPath="$publishPath" `
