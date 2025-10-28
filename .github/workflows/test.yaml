@@ -18,6 +18,12 @@ on:
       deploy_target_path:
         required: true
         type: string
+      deploy_testing_path:
+        required: false
+        type: string
+      e2e_tests_json:
+        required: false 
+        type: string
 
 jobs:
   build_project:
@@ -40,55 +46,147 @@ jobs:
             name: built-project
             path: ${{ github.workspace }}/publish/
 
-  # prepare_backup:
-  #   name: Create Backup of Current Version
-  #   #needs: build_project
-  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
-  #   outputs:
-  #     backup_folder: ${{ steps.create_backup.outputs.backup_folder }}
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+  prepare_backup:
+    name: Create Backup of Current Version
+    #needs: build_project
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    outputs:
+      backup_folder: ${{ steps.create_backup.outputs.backup_folder }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  #     - name: Create Dynamic Backup Folder
-  #       id: create_backup
-  #       shell: pwsh
-  #       run: |
-  #         $deployPath = "${{ inputs.deploy_target_path }}"
-  #         $backupRoot = "C:\backup"
+      - name: Create Dynamic Backup Folder
+        id: create_backup
+        shell: pwsh
+        run: |
+          $deployPath = "${{ inputs.deploy_target_path }}"
+          $backupRoot = "C:\backup"
 
-  #         if (!(Test-Path $backupRoot)) {
-  #           New-Item -ItemType Directory -Path $backupRoot | Out-Null
-  #         }
+          if (!(Test-Path $backupRoot)) {
+            New-Item -ItemType Directory -Path $backupRoot | Out-Null
+          }
 
-  #         # Obtener el nombre base del proyecto desde el path destino
-  #         $rawName = Split-Path $deployPath -Leaf
-  #         $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
+          # Obtener el nombre base del proyecto desde el path destino
+          $rawName = Split-Path $deployPath -Leaf
+          $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
 
-  #         # Crear nombre versionado para el backup
-  #         $date = Get-Date -Format "yyyy-MM-dd"
-  #         $i = 1
-  #         while (Test-Path "$backupRoot\$siteName-$date-$i") { $i++ }
-  #         $backupFolder = "$backupRoot\$siteName-$date-$i"
+          # Crear nombre versionado para el backup
+          $date = Get-Date -Format "yyyy-MM-dd"
+          $i = 1
+          while (Test-Path "$backupRoot\$siteName-$date-$i") { $i++ }
+          $backupFolder = "$backupRoot\$siteName-$date-$i"
 
-  #         Write-Host "Creating backup folder: $backupFolder"
-  #         New-Item -ItemType Directory -Path $backupFolder | Out-Null
+          Write-Host "Creating backup folder: $backupFolder"
+          New-Item -ItemType Directory -Path $backupFolder | Out-Null
 
-  #         # Copiar contenido actual del sitio IIS (si existe)
-  #         if (Test-Path $deployPath) {
-  #           Write-Host "📦 Copying existing deployment from: $deployPath"
-  #           Copy-Item "$deployPath\*" -Destination $backupFolder -Recurse -Force
-  #           Write-Host "Backup completed successfully!"
-  #         } else {
-  #           Write-Host "No existing deployment found to backup."
-  #         }
+          # Copiar contenido actual del sitio IIS (si existe)
+          if (Test-Path $deployPath) {
+            Write-Host "📦 Copying existing deployment from: $deployPath"
+            Copy-Item "$deployPath\*" -Destination $backupFolder -Recurse -Force
+            Write-Host "Backup completed successfully!"
+          } else {
+            Write-Host "No existing deployment found to backup."
+          }
 
-  #         echo "backup_folder=$backupFolder" >> $env:GITHUB_OUTPUT
-  #         Write-Host "🎯 Backup path: $backupFolder"
+          echo "backup_folder=$backupFolder" >> $env:GITHUB_OUTPUT
+          Write-Host "Backup path: $backupFolder"
+  
+  deploy_to_site_test:
+    name: Deploy to IIS site for testing
+    needs: [build_project]
+    if: ${{ inputs.deploy_staging_path != '' }}
+    runs-on: [self-hosted, windows, x64, iis-dev]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download Artifact
+        uses: actions/download-artifact@v3
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: built-project
+          path: ${{ github.workspace }}/artifact/
+
+      - name: Deploy to IIS site for testing using Web Deploy
+        shell: powershell
+        run: |
+          # Ruta local del artifact descargado
+          $publishPath = "$env:GITHUB_WORKSPACE\artifact"
+          $sitetestpath = "${{ inputs.deploy_testing_path }}"
+
+          # Ruta de instalación de msdeploy
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          if (-Not (Test-Path $msdeploy)) {
+            $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          }
+
+          if (-Not (Test-Path $msdeploy)) {
+            Write-Host "msdeploy.exe not found. Please install Web Deploy on this server."
+            exit 1
+          }
+
+          Write-Host "Using msdeploy at: $msdeploy"
+          Write-Host "Deploying from: $publishPath"
+          Write-Host "Destination: $sitetestpath"
+
+          # Ejecutar la sincronización
+          & $msdeploy `
+            -verb:sync `
+            -source:dirPath="$publishPath" `
+            -dest:dirPath="$sitetestpath" `
+            -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
+            -useCheckSum `
+            -allowUntrusted `
+            -enableRule:AppOffline `
+            -enableRule:DoNotDeleteRule `
+            -retryAttempts:3 `
+            -verbose
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Deployment failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          } else {
+            Write-Host "Deployment completed to site for testing successfully."
+          }
+
+  run_e2e_tests:
+    name: Run E2E Tests (Gate)
+    needs: deploy_to_staging
+    if: ${{ github.ref == 'refs/heads/main' && inputs.e2e_tests_json != '' }}
+    runs-on: [self-hosted, windows, x64, iis-dev]
+    strategy:
+      matrix:
+        test_command: ${{ fromJson(inputs.e2e_tests_json) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Maven test
+        shell: powershell
+        run: |
+          Write-Host "🧪 Running test command:"
+          Write-Host "${{ matrix.test_command }}"
+          
+          try {
+            # Ejecutar el comando Maven
+            Invoke-Expression "${{ matrix.test_command }}"
+            
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "✅ Test run completed successfully."
+            } else {
+              Write-Error "❌ Test execution failed with exit code $LASTEXITCODE"
+              exit $LASTEXITCODE
+            }
+          }
+          catch {
+            Write-Error "❌ Exception occurred while running test command: $_"
+            exit 1
+          }   
 
   deploy_to_iis:
     name: Deploying to IIS using Web Deploy
-    needs: [build_project]
+    needs: [prepare_backup, run_e2e_tests]
+    if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
     runs-on: [self-hosted, windows, x64, iis-dev]
     steps:
       - name: Checkout repository

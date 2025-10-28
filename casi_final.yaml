@@ -1,0 +1,179 @@
+name: "IIS WebDeploy Incremental with Matrix & Ordered Build"
+
+on:
+  workflow_call:
+    inputs:
+      projects_json: # Lista de proyectos (1 o varios)
+        required: true
+        type: string
+      runner_tag:
+        required: true
+        type: string
+      e2e_tests_json:
+        required: false
+        type: string
+
+jobs:
+  # =======================================
+  # 1️⃣ BUILD PROJECTS (ordered matrix)
+  # =======================================
+  build_projects:
+    name: "🔨 Build Projects"
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1 # Fuerza ejecución en orden secuencial (API → WEB)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Build with composite action"
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/build-release-deploy@Production
+        with:
+          solution_path: ${{ matrix.solution_path }}
+          project_path: ${{ matrix.project_path }}
+          project_type: ${{ matrix.project_type }}
+      
+      - name: "📦 Upload Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.project_name }}
+          path: ${{ github.workspace }}/publish/
+
+  # =======================================
+  # 2️⃣ BACKUP CURRENT DEPLOYMENT
+  # =======================================
+  prepare_backup:
+    name: "🗂️ Create Backups for Each Project"
+    needs: build_projects
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1
+    steps:
+      - name: "Create Dynamic Backup Folder"
+        id: create_backup
+        shell: pwsh
+        run: |
+          $deployPath = "${{ matrix.deploy_target_path }}"
+          
+          # Obtener el nivel padre de la carpeta de versiones
+          $parentDir = Split-Path $deployPath -Parent
+          $backupRoot = Join-Path $parentDir "backups"
+
+          if (!(Test-Path $backupRoot)) {
+            Write-Host "📁 Creating backups directory at: $backupRoot"
+            New-Item -ItemType Directory -Path $backupRoot | Out-Null
+          }
+
+          # Generar nombre versionado
+          $rawName = Split-Path $deployPath -Leaf
+          $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
+          $date = Get-Date -Format "yyyy-MM-dd"
+          $i = 1
+          while (Test-Path "$backupRoot\$siteName-$date-$i") { $i++ }
+          $backupFolder = "$backupRoot\$siteName-$date-$i"
+
+          Write-Host "📦 Creating backup: $backupFolder"
+          New-Item -ItemType Directory -Path $backupFolder | Out-Null
+
+          if (Test-Path $deployPath) {
+            Write-Host "📂 Copying from $deployPath → $backupFolder"
+            Copy-Item "$deployPath\*" -Destination $backupFolder -Recurse -Force
+          } else {
+            Write-Host "⚠️ No existing deployment found."
+          }
+
+  # =======================================
+  # 3️⃣ DEPLOY TO TEST SITE (only if provided)
+  # =======================================
+  deploy_to_site_test:
+    name: "🚀 Deploy to IIS test site"
+    needs: build_projects
+    if: ${{ contains(inputs.projects_json, 'deploy_testing_path') }}
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.project_name }}
+          path: ${{ github.workspace }}/artifact/
+
+      - name: "Deploy to test IIS site"
+        shell: pwsh
+        run: |
+          $publishPath = "$env:GITHUB_WORKSPACE\artifact"
+          $siteTestPath = "${{ matrix.deploy_testing_path }}"
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          if (-Not (Test-Path $msdeploy)) {
+            $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          }
+
+          Write-Host "🚀 Deploying from $publishPath to $siteTestPath"
+          & $msdeploy `
+            -verb:sync `
+            -source:dirPath="$publishPath" `
+            -dest:dirPath="$siteTestPath" `
+            -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
+            -useCheckSum -allowUntrusted -enableRule:AppOffline -enableRule:DoNotDeleteRule -retryAttempts:3 -verbose
+
+  # =======================================
+  # 4️⃣ RUN E2E TESTS
+  # =======================================
+  run_e2e_tests:
+    name: "🧪 Run E2E Tests"
+    needs: deploy_to_site_test
+    if: ${{ inputs.e2e_tests_json != '' }}
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix:
+        test_command: ${{ fromJson(inputs.e2e_tests_json) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Run Maven test"
+        shell: pwsh
+        run: |
+          Write-Host "🧪 Running: ${{ matrix.test_command }}"
+          Invoke-Expression "${{ matrix.test_command }}"
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ Tests passed successfully."
+          } else {
+            Write-Error "❌ Tests failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+  # =======================================
+  # 5️⃣ DEPLOY TO IIS (PRODUCTION)
+  # =======================================
+  deploy_to_iis:
+    name: "🚀 Deploy to IIS"
+    needs: [prepare_backup, run_e2e_tests]
+    if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.project_name }}
+          path: ${{ github.workspace }}/artifact/
+
+      - name: "Deploy to IIS"
+        shell: pwsh
+        run: |
+          $publishPath = "$env:GITHUB_WORKSPACE\artifact"
+          $destPath = "${{ matrix.deploy_target_path }}"
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          if (-Not (Test-Path $msdeploy)) { $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" }
+
+          Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
+          & $msdeploy `
+            -verb:sync `
+            -source:dirPath="$publishPath" `
+            -dest:dirPath="$destPath" `
+            -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
+            -useCheckSum -allowUntrusted -enableRule:DoNotDeleteRule -retryAttempts:3 -verbose
