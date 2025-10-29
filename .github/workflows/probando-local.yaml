@@ -19,7 +19,7 @@ jobs:
   # =======================================
   build_projects:
     name: "🔨 Build Projects"
-    runs-on: [self-hosted, windows, x64, klk]
+    runs-on: [self-hosted, windows, x64, laptop]
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
       max-parallel: 1
@@ -43,46 +43,46 @@ jobs:
   # =======================================
   # 2️⃣ CREATE BACKUP
   # =======================================
-  prepare_backup:
-    name: "🗂️ Create Backup"
-    needs: build_projects
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - name: "Create Dynamic Backup Folder"
-        id: create_backup
-        shell: powershell
-        run: |
-          $deployPath = "${{ matrix.deploy_target_path }}";
-          $parentDir = Split-Path $deployPath -Parent;
-          $backupRoot = Join-Path $parentDir "backups";
+  # prepare_backup:
+  #   name: "🗂️ Create Backup"
+  #   needs: build_projects
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
+  #   steps:
+  #     - name: "Create Dynamic Backup Folder"
+  #       id: create_backup
+  #       shell: powershell
+  #       run: |
+  #         $deployPath = "${{ matrix.deploy_target_path }}";
+  #         $parentDir = Split-Path $deployPath -Parent;
+  #         $backupRoot = Join-Path $parentDir "backups";
           
-          if (!(Test-Path $backupRoot)) {
-            New-Item -ItemType Directory -Path $backupRoot | Out-Null;
-          }
+  #         if (!(Test-Path $backupRoot)) {
+  #           New-Item -ItemType Directory -Path $backupRoot | Out-Null;
+  #         }
           
-          $rawName = Split-Path $deployPath -Leaf;
-          $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "");
-          $date = Get-Date -Format "yyyy-MM-dd";
-          $i = 1;
+  #         $rawName = Split-Path $deployPath -Leaf;
+  #         $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "");
+  #         $date = Get-Date -Format "yyyy-MM-dd";
+  #         $i = 1;
           
-          while (Test-Path "$backupRoot\$siteName-$date-$i") { 
-            $i++;
-          }
+  #         while (Test-Path "$backupRoot\$siteName-$date-$i") { 
+  #           $i++;
+  #         }
           
-          $backupFolder = "$backupRoot\$siteName-$date-$i";
+  #         $backupFolder = "$backupRoot\$siteName-$date-$i";
           
-          Write-Host "📦 Creating backup folder: $backupFolder";
-          New-Item -ItemType Directory -Path $backupFolder | Out-Null;
+  #         Write-Host "📦 Creating backup folder: $backupFolder";
+  #         New-Item -ItemType Directory -Path $backupFolder | Out-Null;
           
-          if (Test-Path $deployPath) {
-            Write-Host "📂 Copying from $deployPath → $backupFolder";
-            Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force;
-          } else {
-            Write-Host "⚠️ No existing deployment found.";
-          }
+  #         if (Test-Path $deployPath) {
+  #           Write-Host "📂 Copying from $deployPath → $backupFolder";
+  #           Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force;
+  #         } else {
+  #           Write-Host "⚠️ No existing deployment found.";
+  #         }
 
   # =======================================
   # 3️⃣ DEPLOY TO TEST SITE
@@ -138,74 +138,83 @@ jobs:
   # =======================================
   # 4️⃣ RUN E2E TESTS
   # =======================================
-  # run_e2e_tests:
-  #   name: "🧪 Run E2E Tests"
-  #   needs: deploy_to_site_test
-  #   if: ${{ github.ref == 'refs/heads/main' && inputs.e2e_tests_json != '' }}
-  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
-  #   strategy:
-  #     matrix:
-  #       test_command: ${{ fromJson(inputs.e2e_tests_json) }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: "Run Maven test"
-  #       shell: powershell
-  #       run: |
-  #         Write-Host "🧪 Running: ${{ matrix.test_command }}"
-  #         Invoke-Expression "${{ matrix.test_command }}"
-  #         if ($LASTEXITCODE -eq 0) {
-  #           Write-Host "✅ Tests passed successfully."
-  #         } else {
-  #           Write-Error "❌ Tests failed with exit code $LASTEXITCODE"
-  #           exit $LASTEXITCODE
-  #         }
+  run_e2e_tests:
+    name: "🧪 Run E2E Tests"
+    #needs: deploy_to_site_test
+    #if: ${{ github.ref == 'refs/heads/main' && inputs.e2e_tests_json != '' }}
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix:
+        test_command: ${{ fromJson(inputs.e2e_tests_json) }}
+    steps:
+
+      - name: Checkingout from other repository
+        uses: actions/checkout@v4
+        with:
+          repository: PruebaActions/Website
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN}}
+          path: Klk
+
+      - uses: actions/checkout@v4
+      - name: "Run Maven test"
+        shell: powershell
+        run: |
+          Write-Host "🧪 Running: ${{ matrix.test_command }}"
+          Invoke-Expression "${{ matrix.test_command }}"
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ Tests passed successfully."
+          } else {
+            Write-Error "❌ Tests failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
 
   # =======================================
   # 5️⃣ DEPLOY TO IIS (PROD)
   # =======================================
-  deploy_to_iis:
-    name: "🚀 Deploy to IIS (Production)"
-    needs: [prepare_backup] #run_e2e_tests
-    #if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - uses: actions/checkout@v4
+  # deploy_to_iis:
+  #   name: "🚀 Deploy to IIS (Production)"
+  #   needs: [prepare_backup] #run_e2e_tests
+  #   #if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: "⬇️ Download Artifact (specific project)"
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.project_name }}
-          path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
+  #     - name: "⬇️ Download Artifact (specific project)"
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ${{ matrix.project_name }}
+  #         path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
-      - name: "Deploy to IIS"
-        shell: powershell
-        run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
-          $destPath = "${{ matrix.deploy_target_path }}"
-          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-          if (-Not (Test-Path $msdeploy)) { $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" }
+  #     - name: "Deploy to IIS"
+  #       shell: powershell
+  #       run: |
+  #         $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
+  #         $destPath = "${{ matrix.deploy_target_path }}"
+  #         $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+  #         if (-Not (Test-Path $msdeploy)) { $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" }
 
-          Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
-          Write-Host "📦 Source: $publishPath"
+  #         Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
+  #         Write-Host "📦 Source: $publishPath"
 
-          & $msdeploy `
-            -verb:sync `
-            -source:dirPath="$publishPath" `
-            -dest:dirPath="$destPath" `
-            -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
-            -useCheckSum `
-            -allowUntrusted `
-            -enableRule:AppOffline `
-            -enableRule:DoNotDeleteRule `
-            -retryAttempts:3 `
-            -verbose
+  #         & $msdeploy `
+  #           -verb:sync `
+  #           -source:dirPath="$publishPath" `
+  #           -dest:dirPath="$destPath" `
+  #           -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
+  #           -useCheckSum `
+  #           -allowUntrusted `
+  #           -enableRule:AppOffline `
+  #           -enableRule:DoNotDeleteRule `
+  #           -retryAttempts:3 `
+  #           -verbose
           
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Deployment failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          } else {
-            Write-Host "Deployment completed successfully."
-          }
+  #         if ($LASTEXITCODE -ne 0) {
+  #           Write-Host "Deployment failed with exit code $LASTEXITCODE"
+  #           exit $LASTEXITCODE
+  #         } else {
+  #           Write-Host "Deployment completed successfully."
+  #         }
