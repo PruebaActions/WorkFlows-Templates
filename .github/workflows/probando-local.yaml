@@ -17,30 +17,30 @@ jobs:
   # =======================================
   # 1️⃣ BUILD PROJECTS
   # =======================================
-  build_projects:
-    name: "🔨 Build Projects"
-    runs-on: [self-hosted, windows, x64, laptop]
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - uses: actions/checkout@v4
+  # build_projects:
+  #   name: "🔨 Build Projects"
+  #   runs-on: [self-hosted, windows, x64, laptop]
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: "Build with composite action (isolated output)"
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-release-deploy@main
-        with:
-          solution_path: ${{ matrix.solution_path }}
-          project_path: ${{ matrix.project_path }}
-          project_type: ${{ matrix.project_type }}
-          output_path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
+  #     - name: "Build with composite action (isolated output)"
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-release-deploy@main
+  #       with:
+  #         solution_path: ${{ matrix.solution_path }}
+  #         project_path: ${{ matrix.project_path }}
+  #         project_type: ${{ matrix.project_type }}
+  #         output_path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
 
-      - name: "📦 Upload Artifact (per project)"
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.project_name }}
-          path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
+  #     - name: "📦 Upload Artifact (per project)"
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ matrix.project_name }}
+  #         path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
 
-  # =======================================
+  # # =======================================
   # 2️⃣ CREATE BACKUP
   # =======================================
   # prepare_backup:
