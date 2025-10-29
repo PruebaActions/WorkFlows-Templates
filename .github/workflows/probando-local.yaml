@@ -159,8 +159,6 @@ jobs:
       - name: List files in checkout directory
         run: dir C:\actions-runner\_work\UVC.Websites\UVC.Websites\Klk
 
-
-      - uses: actions/checkout@v4
       - name: "Run Maven test"
         shell: powershell
         run: |
