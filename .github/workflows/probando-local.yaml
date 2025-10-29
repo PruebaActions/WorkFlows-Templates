@@ -154,7 +154,7 @@ jobs:
           repository: PruebaActions/Website
           ref: master
           token: ${{ secrets.GITHUB_TOKEN}}
-          path: ../../Klk
+          path: ${{ runner.workspace }}/Klk
 
       - name: List files in checkout directory
         run: dir C:\actions-runner\_work\UVC.Websites\UVC.Websites\Klk
