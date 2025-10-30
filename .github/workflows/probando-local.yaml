@@ -230,7 +230,6 @@ jobs:
             -verb:sync `
             -source:dirPath="$publishPath" `
             -dest:dirPath="$destPath" `
-            @skipArgs `
             -useCheckSum `
             -allowUntrusted `
             -enableRule:AppOffline `
