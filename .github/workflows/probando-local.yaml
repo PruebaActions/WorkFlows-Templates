@@ -206,7 +206,6 @@ jobs:
             -verb:sync `
             -source:dirPath="$publishPath" `
             -dest:dirPath="$destPath" `
-            -skip:objectName=filePath,absolutePath=.*[\\/]web\.config$ `
             -useCheckSum `
             -allowUntrusted `
             -enableRule:AppOffline `
