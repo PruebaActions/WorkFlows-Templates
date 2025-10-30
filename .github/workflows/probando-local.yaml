@@ -43,46 +43,46 @@ jobs:
   # # =======================================
   # 2️⃣ CREATE BACKUP
   # =======================================
-  prepare_backup:
-    name: "🗂️ Create Backup"
-    needs: build_projects
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - name: "Create Dynamic Backup Folder"
-        id: create_backup
-        shell: powershell
-        run: |
-          $deployPath = "${{ matrix.deploy_target_path }}";
-          $parentDir = Split-Path $deployPath -Parent;
-          $backupRoot = Join-Path $parentDir "backups";
+  # prepare_backup:
+  #   name: "🗂️ Create Backup"
+  #   needs: build_projects
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
+  #   steps:
+  #     - name: "Create Dynamic Backup Folder"
+  #       id: create_backup
+  #       shell: powershell
+  #       run: |
+  #         $deployPath = "${{ matrix.deploy_target_path }}";
+  #         $parentDir = Split-Path $deployPath -Parent;
+  #         $backupRoot = Join-Path $parentDir "backups";
           
-          if (!(Test-Path $backupRoot)) {
-            New-Item -ItemType Directory -Path $backupRoot | Out-Null;
-          }
+  #         if (!(Test-Path $backupRoot)) {
+  #           New-Item -ItemType Directory -Path $backupRoot | Out-Null;
+  #         }
           
-          $rawName = Split-Path $deployPath -Leaf;
-          $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "");
-          $date = Get-Date -Format "yyyy-MM-dd";
-          $i = 1;
+  #         $rawName = Split-Path $deployPath -Leaf;
+  #         $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "");
+  #         $date = Get-Date -Format "yyyy-MM-dd";
+  #         $i = 1;
           
-          while (Test-Path "$backupRoot\$siteName-$date-$i") { 
-            $i++;
-          }
+  #         while (Test-Path "$backupRoot\$siteName-$date-$i") { 
+  #           $i++;
+  #         }
           
-          $backupFolder = "$backupRoot\$siteName-$date-$i";
+  #         $backupFolder = "$backupRoot\$siteName-$date-$i";
           
-          Write-Host "📦 Creating backup folder: $backupFolder";
-          New-Item -ItemType Directory -Path $backupFolder | Out-Null;
+  #         Write-Host "📦 Creating backup folder: $backupFolder";
+  #         New-Item -ItemType Directory -Path $backupFolder | Out-Null;
           
-          if (Test-Path $deployPath) {
-            Write-Host "📂 Copying from $deployPath → $backupFolder";
-            Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force;
-          } else {
-            Write-Host "⚠️ No existing deployment found.";
-          }
+  #         if (Test-Path $deployPath) {
+  #           Write-Host "📂 Copying from $deployPath → $backupFolder";
+  #           Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force;
+  #         } else {
+  #           Write-Host "⚠️ No existing deployment found.";
+  #         }
 
   # =======================================
   # 3️⃣ DEPLOY TO TEST SITE
