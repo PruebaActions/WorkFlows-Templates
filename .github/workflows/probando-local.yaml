@@ -17,174 +17,115 @@ on:
         type: string
 
 jobs:
-  # =======================================
-  # 1️⃣ BUILD PROJECTS
-  # =======================================
-  build_projects:
-    name: "🔨 Build Projects"
-    runs-on: [self-hosted, windows, x64, laptop]
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: "Build with composite action (isolated output)"
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-release-deploy@main
-        with:
-          solution_path: ${{ matrix.solution_path }}
-          project_path: ${{ matrix.project_path }}
-          project_type: ${{ matrix.project_type }}
-          output_path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
-
-      - name: "📦 Upload Artifact (per project)"
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.project_name }}
-          path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
-
   # # =======================================
-  # 2️⃣ CREATE BACKUP
-  # =======================================
-  prepare_backup:
-    name: "🗂️ Create Backup"
-    needs: build_projects
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - name: "Create Dynamic Backup Folder"
-        id: create_backup
-        shell: pwsh
-        run: |
-          $deployPath = "${{ matrix.deploy_target_path }}"
-          $parentDir = Split-Path $deployPath -Parent
-          $backupRoot = Join-Path $parentDir "backups"
-
-          if (!(Test-Path $backupRoot)) {
-            New-Item -ItemType Directory -Path $backupRoot | Out-Null
-          }
-
-          $rawName = Split-Path $deployPath -Leaf
-          $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
-
-          # 🧠 Obtener la última fecha y hora de modificación del deployment actual
-          if (Test-Path $deployPath) {
-            $lastModifiedItem = Get-ChildItem -Recurse -Path $deployPath -ErrorAction SilentlyContinue |
-              Sort-Object LastWriteTime -Descending |
-              Select-Object -First 1
-
-            if ($lastModifiedItem) {
-              $dateTime = $lastModifiedItem.LastWriteTime.ToString("yyyy-MM-dd")
-              Write-Host "📅 Última modificación detectada: $dateTime"
-            } else {
-              Write-Host "⚠️ No se encontraron archivos dentro del deployment. Usando fecha actual."
-              $dateTime = (Get-Date).ToString("yyyy-MM-dd")
-            }
-          } else {
-            Write-Host "⚠️ Ruta de deployment no encontrada. Usando fecha actual."
-            $dateTime = (Get-Date).ToString("yyyy-MM-dd")
-          }
-
-          # Crear nombre versionado para el backup con la fecha + hora del último cambio
-          $i = 1
-          while (Test-Path "$backupRoot\$siteName-$dateTime-$i") { $i++ }
-          $backupFolder = "$backupRoot\$siteName-$dateTime-$i"
-
-          Write-Host "📦 Creando carpeta de backup: $backupFolder"
-          New-Item -ItemType Directory -Path $backupFolder | Out-Null
-
-          if (Test-Path $deployPath) {
-            Write-Host "📂 Copiando desde $deployPath → $backupFolder"
-            Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force
-            Write-Host "✅ Backup completado con éxito."
-          } else {
-            Write-Host "⚠️ No se encontró el deployment original, no se generó backup."
-          }
-
-  # =======================================
-  # 3️⃣ DEPLOY TO TEST SITE
-  # =======================================
-  # deploy_to_site_test:
-  #   name: "🚀 Deploy to IIS (Testing Site)"
-  #   needs: build_projects
-  #   if: ${{ contains(inputs.projects_json, 'deploy_testing_path') }}
-  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  # # 1️⃣ BUILD PROJECTS
+  # # =======================================
+  # build_projects:
+  #   name: "🔨 Build Projects"
+  #   runs-on: [self-hosted, windows, x64, laptop]
   #   strategy:
   #     matrix: ${{ fromJson(inputs.projects_json) }}
   #     max-parallel: 1
   #   steps:
   #     - uses: actions/checkout@v4
 
-  #     - name: "⬇️ Download Artifact (specific project)"
-  #       uses: actions/download-artifact@v4
+  #     - name: "Build with composite action (isolated output)"
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-release-deploy@main
+  #       with:
+  #         solution_path: ${{ matrix.solution_path }}
+  #         project_path: ${{ matrix.project_path }}
+  #         project_type: ${{ matrix.project_type }}
+  #         output_path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
+
+  #     - name: "📦 Upload Artifact (per project)"
+  #       uses: actions/upload-artifact@v4
   #       with:
   #         name: ${{ matrix.project_name }}
-  #         path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
-
-  #     - name: "Deploy to Test IIS Site"
-  #       shell: powershell
-  #       run: |
-  #         $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
-  #         $siteTestPath = "${{ matrix.deploy_testing_path }}"
-  #         $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-  #         if (-Not (Test-Path $msdeploy)) {
-  #           $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-  #         }
-
-  #         # 🧠 Construir dinámicamente los argumentos -skip basados en tipo real (folder vs file)
-  #         $skipArgs = @()
-  #         $skipItems = '${{ inputs.skip_items_json }}'
-
-  #         if ($skipItems -ne '') {
-  #           $items = $skipItems | ConvertFrom-Json
-  #           foreach ($name in $items) {
-  #             $fullPath = Join-Path $publishPath $name
-  #             if (Test-Path $fullPath -PathType Container) {
-  #               # 🟩 Es una carpeta real
-  #               $skipArgs += "-skip:objectName=dirPath,absolutePath='.*[\\/]({0})($|[\\/])'".Replace("{0}", [Regex]::Escape($name))
-  #             } elseif (Test-Path $fullPath -PathType Leaf) {
-  #               # 🟦 Es un archivo real
-  #               $skipArgs += "-skip:objectName=filePath,absolutePath='.*[\\/]{0}$'".Replace("{0}", [Regex]::Escape($name))
-  #             } else {
-  #               Write-Warning "⚠️ No se encontró '$name' dentro de $publishPath — ignorando detección de tipo."
-  #             }
-  #           }
-  #         }
-
-  #         Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
-  #         Write-Host "📦 Source: $publishPath"
-  #         Write-Host "🧩 Skip arguments: $($skipArgs -join ' ')"
-
-  #         Write-Host "🚀 Deploying from $publishPath to $siteTestPath"
-  #         & $msdeploy `
-  #           -verb:sync `
-  #           -source:dirPath="$publishPath" `
-  #           -dest:dirPath="$siteTestPath" `
-  #           @skipArgs `
-  #           -useCheckSum `
-  #           -allowUntrusted `
-  #           -enableRule:AppOffline `
-  #           -enableRule:DoNotDeleteRule `
-  #           -retryAttempts:3 `
-  #           -verbose
+  #         path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
 
 
-  #         if ($LASTEXITCODE -ne 0) {
-  #           Write-Host "Deployment failed with exit code $LASTEXITCODE"
-  #           exit $LASTEXITCODE
-  #         } else {
-  #           Write-Host "Deployment completed successfully."
-  #         }
+  # =======================================
+  # 3️⃣ DEPLOY TO TEST SITE
+  # =======================================
+  deploy_to_site_test:
+    name: "🚀 Deploy to IIS (Testing Site)"
+    #needs: build_projects
+    if: ${{ contains(inputs.projects_json, 'deploy_testing_path') }}
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "⬇️ Download Artifact (specific project)"
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.project_name }}
+          path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
+
+      - name: "Deploy to Test IIS Site"
+        shell: powershell
+        run: |
+          $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
+          $siteTestPath = "${{ matrix.deploy_testing_path }}"
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          if (-Not (Test-Path $msdeploy)) {
+            $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          }
+
+          # 🧠 Construir dinámicamente los argumentos -skip basados en tipo real (folder vs file)
+          $skipArgs = @()
+          $skipItems = '${{ inputs.skip_items_json }}'
+
+          if ($skipItems -ne '') {
+            $items = $skipItems | ConvertFrom-Json
+            foreach ($name in $items) {
+              $fullPath = Join-Path $publishPath $name
+              if (Test-Path $fullPath -PathType Container) {
+                # 🟩 Es una carpeta real
+                $skipArgs += "-skip:objectName=dirPath,absolutePath='.*[\\/]({0})($|[\\/])'".Replace("{0}", [Regex]::Escape($name))
+              } elseif (Test-Path $fullPath -PathType Leaf) {
+                # 🟦 Es un archivo real
+                $skipArgs += "-skip:objectName=filePath,absolutePath='.*[\\/]{0}$'".Replace("{0}", [Regex]::Escape($name))
+              } else {
+                Write-Warning "⚠️ No se encontró '$name' dentro de $publishPath — ignorando detección de tipo."
+              }
+            }
+          }
+
+          Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
+          Write-Host "📦 Source: $publishPath"
+          Write-Host "🧩 Skip arguments: $($skipArgs -join ' ')"
+
+          Write-Host "🚀 Deploying from $publishPath to $siteTestPath"
+          & $msdeploy `
+            -verb:sync `
+            -source:dirPath="$publishPath" `
+            -dest:dirPath="$siteTestPath" `
+            @skipArgs `
+            -useCheckSum `
+            -allowUntrusted `
+            -enableRule:AppOffline `
+            -enableRule:DoNotDeleteRule `
+            -retryAttempts:3 `
+            -verbose
+
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Deployment failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          } else {
+            Write-Host "Deployment completed successfully."
+          }
 
   # =======================================
   # 4️⃣ RUN E2E TESTS
   # =======================================
   # run_e2e_tests:
   #   name: "🧪 Run E2E Tests"
-  #   #needs: deploy_to_site_test
-  #   #if: ${{ github.ref == 'refs/heads/main' && inputs.e2e_tests_json != '' }}
+  #   needs: deploy_to_site_test
+  #   if: ${{ github.ref == 'refs/heads/Production' && inputs.e2e_tests_json != '' }}
   #   runs-on: ${{ fromJson(inputs.runner_tag) }}
   #   strategy:
   #     matrix:
@@ -214,77 +155,140 @@ jobs:
   #           exit $LASTEXITCODE
   #         }
 
+
+  # # =======================================
+  # 2️⃣ CREATE BACKUP
+  # =======================================
+  # prepare_backup:
+  #   name: "🗂️ Create Backup"
+  #   needs: [build_projects, run_e2e_tests]
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
+  #   steps:
+  #     - name: "Create Dynamic Backup Folder"
+  #       id: create_backup
+  #       shell: pwsh
+  #       run: |
+  #         $deployPath = "${{ matrix.deploy_target_path }}"
+  #         $parentDir = Split-Path $deployPath -Parent
+  #         $backupRoot = Join-Path $parentDir "backups"
+
+  #         if (!(Test-Path $backupRoot)) {
+  #           New-Item -ItemType Directory -Path $backupRoot | Out-Null
+  #         }
+
+  #         $rawName = Split-Path $deployPath -Leaf
+  #         $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
+
+  #         # 🧠 Obtener la última fecha y hora de modificación del deployment actual
+  #         if (Test-Path $deployPath) {
+  #           $lastModifiedItem = Get-ChildItem -Recurse -Path $deployPath -ErrorAction SilentlyContinue |
+  #             Sort-Object LastWriteTime -Descending |
+  #             Select-Object -First 1
+
+  #           if ($lastModifiedItem) {
+  #             $dateTime = $lastModifiedItem.LastWriteTime.ToString("yyyy-MM-dd")
+  #             Write-Host "📅 Última modificación detectada: $dateTime"
+  #           } else {
+  #             Write-Host "⚠️ No se encontraron archivos dentro del deployment. Usando fecha actual."
+  #             $dateTime = (Get-Date).ToString("yyyy-MM-dd")
+  #           }
+  #         } else {
+  #           Write-Host "⚠️ Ruta de deployment no encontrada. Usando fecha actual."
+  #           $dateTime = (Get-Date).ToString("yyyy-MM-dd")
+  #         }
+
+  #         # Crear nombre versionado para el backup con la fecha + hora del último cambio
+  #         $i = 1
+  #         while (Test-Path "$backupRoot\$siteName-$dateTime-$i") { $i++ }
+  #         $backupFolder = "$backupRoot\$siteName-$dateTime-$i"
+
+  #         Write-Host "📦 Creando carpeta de backup: $backupFolder"
+  #         New-Item -ItemType Directory -Path $backupFolder | Out-Null
+
+  #         if (Test-Path $deployPath) {
+  #           Write-Host "📂 Copiando desde $deployPath → $backupFolder"
+  #           Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force
+  #           Write-Host "✅ Backup completado con éxito."
+  #         } else {
+  #           Write-Host "⚠️ No se encontró el deployment original, no se generó backup."
+  #         }
+
   # =======================================
   # 5️⃣ DEPLOY TO IIS (PROD)
   # =======================================
-  deploy_to_iis:
-    name: "🚀 Deploy to IIS (Production)"
-    #needs: [prepare_backup] #run_e2e_tests
-    #if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
-    needs: ${{ github.ref == 'refs/heads/Production' && 'run_e2e_tests' || 'prepare_backup' }}
-    if: ${{ github.ref == 'refs/heads/Production' && (needs.run_e2e_tests.result == 'success' || success()) || github.ref == 'refs/heads/Development' }}
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - uses: actions/checkout@v4
+  # deploy_to_iis:
+  #   name: "🚀 Deploy to IIS (Production)"
+  #   needs: [prepare_backup] #run_e2e_tests
+  #   if: >
+  #     ${{ 
+  #       (github.ref == 'refs/heads/Production' && needs.run_e2e_tests.result == 'success') ||
+  #       (github.ref == 'refs/heads/Development')
+  #     }}
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: "⬇️ Download Artifact (specific project)"
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.project_name }}
-          path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
+  #     - name: "⬇️ Download Artifact (specific project)"
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ${{ matrix.project_name }}
+  #         path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
-      - name: "Deploy to IIS"
-        shell: pwsh
-        run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
-          $destPath = "${{ matrix.deploy_target_path }}"
-          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-          if (-Not (Test-Path $msdeploy)) { $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" }
+  #     - name: "Deploy to IIS"
+  #       shell: pwsh
+  #       run: |
+  #         $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
+  #         $destPath = "${{ matrix.deploy_target_path }}"
+  #         $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+  #         if (-Not (Test-Path $msdeploy)) { $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" }
 
-          # 🧠 Construir dinámicamente los argumentos -skip basados en tipo real (folder vs file)
-          $skipArgs = @()
-          $skipItems = '${{ inputs.skip_items_json }}'
+  #         # 🧠 Construir dinámicamente los argumentos -skip basados en tipo real (folder vs file)
+  #         $skipArgs = @()
+  #         $skipItems = '${{ inputs.skip_items_json }}'
 
-          if ($skipItems -ne '') {
-            $items = $skipItems | ConvertFrom-Json
-            foreach ($name in $items) {
-              $fullPath = Join-Path $publishPath $name
-              if (Test-Path $fullPath -PathType Container) {
-                # 🟩 Es una carpeta real
-                $skipArgs += "-skip:objectName=dirPath,absolutePath='.*[\\/]({0})($|[\\/])'".Replace("{0}", [Regex]::Escape($name))
-              } elseif (Test-Path $fullPath -PathType Leaf) {
-                # 🟦 Es un archivo real
-                $skipArgs += "-skip:objectName=filePath,absolutePath='.*[\\/]{0}$'".Replace("{0}", [Regex]::Escape($name))
-              } else {
-                Write-Warning "⚠️ No se encontró '$name' dentro de $publishPath — ignorando detección de tipo."
-              }
-            }
-          }
+  #         if ($skipItems -ne '') {
+  #           $items = $skipItems | ConvertFrom-Json
+  #           foreach ($name in $items) {
+  #             $fullPath = Join-Path $publishPath $name
+  #             if (Test-Path $fullPath -PathType Container) {
+  #               # 🟩 Es una carpeta real
+  #               $skipArgs += "-skip:objectName=dirPath,absolutePath='.*[\\/]({0})($|[\\/])'".Replace("{0}", [Regex]::Escape($name))
+  #             } elseif (Test-Path $fullPath -PathType Leaf) {
+  #               # 🟦 Es un archivo real
+  #               $skipArgs += "-skip:objectName=filePath,absolutePath='.*[\\/]{0}$'".Replace("{0}", [Regex]::Escape($name))
+  #             } else {
+  #               Write-Warning "⚠️ No se encontró '$name' dentro de $publishPath — ignorando detección de tipo."
+  #             }
+  #           }
+  #         }
 
-          Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
-          Write-Host "📦 Source: $publishPath"
-          Write-Host "🧩 Skip arguments: $($skipArgs -join ' ')"
+  #         Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
+  #         Write-Host "📦 Source: $publishPath"
+  #         Write-Host "🧩 Skip arguments: $($skipArgs -join ' ')"
 
-          & $msdeploy `
-            -verb:sync `
-            -source:dirPath="$publishPath" `
-            -dest:dirPath="$destPath" `
-            @skipArgs `
-            -useCheckSum `
-            -allowUntrusted `
-            -enableRule:AppOffline `
-            -enableRule:DoNotDeleteRule `
-            -retryAttempts:3 `
-            -verbose
+  #         & $msdeploy `
+  #           -verb:sync `
+  #           -source:dirPath="$publishPath" `
+  #           -dest:dirPath="$destPath" `
+  #           @skipArgs `
+  #           -useCheckSum `
+  #           -allowUntrusted `
+  #           -enableRule:AppOffline `
+  #           -enableRule:DoNotDeleteRule `
+  #           -retryAttempts:3 `
+  #           -verbose
           
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Deployment failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          } else {
-            Write-Host "Deployment completed successfully."
-          }
+  #         if ($LASTEXITCODE -ne 0) {
+  #           Write-Host "Deployment failed with exit code $LASTEXITCODE"
+  #           exit $LASTEXITCODE
+  #         } else {
+  #           Write-Host "Deployment completed successfully."
+  #         }
           
 
