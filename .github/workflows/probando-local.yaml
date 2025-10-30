@@ -125,25 +125,20 @@ jobs:
   run_e2e_tests:
     name: "🧪 Run E2E Tests"
     needs: deploy_to_site_test
-    if: ${{ github.ref == 'refs/heads/Production' && inputs.e2e_tests_json != '' }}
+    #if: ${{ github.ref == 'refs/heads/Production' && inputs.e2e_tests_json != '' }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
       matrix:
         test_command: ${{ fromJson(inputs.e2e_tests_json) }}
     steps:
 
-      - name: Checkingout from other repository
-        uses: actions/checkout@v4
-        with:
-          repository: PruebaActions/Website
-          ref: master
-          token: ${{ secrets.GITHUB_TOKEN}}
-          path: Klk
-
-      - name: List files in checkout directory
-        run: dir C:\actions-runner\_work\UVC.Websites\UVC.Websites\Klk
+      - name: "Check if running in Development"
+        if: github.ref == 'refs/heads/Development'
+        run: |
+          Write-Host "⚠️ Development branch detected. Skipping real E2E tests."
 
       - name: "Run Maven test"
+        if: github.ref == 'refs/heads/Production' && inputs.e2e_tests_json != ''
         shell: pwsh
         run: |
           Write-Host "🧪 Running: ${{ matrix.test_command }}"
@@ -161,7 +156,7 @@ jobs:
   # =======================================
   prepare_backup:
     name: "🗂️ Create Backup"
-    needs: [build_projects]
+    needs: [build_projects, run_e2e_tests]
     if: >
       ${{
         (github.ref == 'refs/heads/Production' && 
@@ -229,7 +224,7 @@ jobs:
   # =======================================
   deploy_to_iis:
     name: "🚀 Deploy to IIS (Production)"
-    needs: [prepare_backup]
+    needs: [prepare_backup, run_e2e_tests]
     if: >
       ${{
         (github.ref == 'refs/heads/Production' &&
