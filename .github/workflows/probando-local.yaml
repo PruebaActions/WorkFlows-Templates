@@ -76,15 +76,15 @@ jobs:
               Select-Object -First 1
 
             if ($lastModifiedItem) {
-              $dateTime = $lastModifiedItem.LastWriteTime.ToString("yyyy-MM-dd-HH-mm")
+              $dateTime = $lastModifiedItem.LastWriteTime.ToString("yyyy-MM-dd")
               Write-Host "📅 Última modificación detectada: $dateTime"
             } else {
               Write-Host "⚠️ No se encontraron archivos dentro del deployment. Usando fecha actual."
-              $dateTime = (Get-Date).ToString("yyyy-MM-dd-HH-mm")
+              $dateTime = (Get-Date).ToString("yyyy-MM-dd")
             }
           } else {
             Write-Host "⚠️ Ruta de deployment no encontrada. Usando fecha actual."
-            $dateTime = (Get-Date).ToString("yyyy-MM-dd-HH-mm")
+            $dateTime = (Get-Date).ToString("yyyy-MM-dd")
           }
 
           # Crear nombre versionado para el backup con la fecha + hora del último cambio
