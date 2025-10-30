@@ -203,7 +203,7 @@ jobs:
   # =======================================
   deploy_to_iis:
     name: "🚀 Deploy to IIS (Production)"
-    needs: [build_projects] #run_e2e_tests
+    needs: [prepare_backup] #run_e2e_tests
     #if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
