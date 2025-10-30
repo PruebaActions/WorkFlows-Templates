@@ -1,0 +1,21 @@
+name: "Run E2E/Smoke Tests"
+description: "Executes Maven-based test commands dynamically."
+inputs:
+  test_command:
+    description: "The Maven command to execute"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Run Tests"
+      shell: pwsh
+      run: |
+        Write-Host "🧪 Running: ${{ inputs.test_command }}"
+        & ${{ inputs.test_command }}
+        if ($LASTEXITCODE -eq 0) {
+          Write-Host "✅ Tests passed successfully."
+        } else {
+          Write-Error "❌ Tests failed with exit code $LASTEXITCODE"
+          exit $LASTEXITCODE
+        }

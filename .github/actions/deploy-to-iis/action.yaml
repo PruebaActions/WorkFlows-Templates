@@ -1,0 +1,71 @@
+name: "Deploy to IIS (Generic)"
+description: "Performs Web Deploy sync to an IIS site with dynamic skip logic and source/destination paths."
+inputs:
+  project_name:
+    description: "Project name (used for artifact and logs)"
+    required: true
+  publish_path:
+    description: "Path to the published files (artifact path)"
+    required: true
+  destination_path:
+    description: "IIS site path where deployment will occur"
+    required: true
+  skip_items_json:
+    description: "JSON array of files/folders to skip during msdeploy"
+    required: false
+    default: "[]"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Deploy to IIS"
+      shell: pwsh
+      run: |
+        $publishPath = "${{ inputs.publish_path }}"
+        $destPath = "${{ inputs.destination_path }}"
+        $projectName = "${{ inputs.project_name }}"
+        $skipItems = '${{ inputs.skip_items_json }}'
+
+        $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+        if (-Not (Test-Path $msdeploy)) {
+          $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+        }
+
+        # 🧠 Construir dinámicamente los argumentos -skip basados en tipo real (folder vs file)
+        $skipArgs = @()
+        if ($skipItems -ne '') {
+          $items = $skipItems | ConvertFrom-Json
+          foreach ($name in $items) {
+            $fullPath = Join-Path $publishPath $name
+            if (Test-Path $fullPath -PathType Container) {
+              $skipArgs += "-skip:objectName=dirPath,absolutePath='.*[\\/]({0})($|[\\/])'".Replace("{0}", [Regex]::Escape($name))
+            } elseif (Test-Path $fullPath -PathType Leaf) {
+              $skipArgs += "-skip:objectName=filePath,absolutePath='.*[\\/]{0}$'".Replace("{0}", [Regex]::Escape($name))
+            } else {
+              Write-Warning "⚠️ No se encontró '$name' dentro de $publishPath — ignorando detección de tipo."
+            }
+          }
+        }
+
+        Write-Host "🚀 Deploying $projectName to $destPath"
+        Write-Host "📦 Source: $publishPath"
+        Write-Host "🧩 Skip arguments: $($skipArgs -join ' ')"
+
+        & $msdeploy `
+          -verb:sync `
+          -source:dirPath="$publishPath" `
+          -dest:dirPath="$destPath" `
+          @skipArgs `
+          -useCheckSum `
+          -allowUntrusted `
+          -enableRule:AppOffline `
+          -enableRule:DoNotDeleteRule `
+          -retryAttempts:3 `
+          -verbose
+
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "❌ Deployment failed with exit code $LASTEXITCODE"
+          exit $LASTEXITCODE
+        } else {
+          Write-Host "✅ Deployment completed successfully."
+        }
