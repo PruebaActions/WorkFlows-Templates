@@ -15,6 +15,9 @@ on:
       skip_items_json:
         required: false
         type: string
+      e2e_smoke_tests_json:
+        required: false
+        type: string
 
 jobs:
   # # =======================================
@@ -60,8 +63,10 @@ jobs:
         if: github.ref == 'refs/heads/Development'
         run: |
           Write-Host "Development branch detected. Skipping deploy to test IIS site."
-    
-      - uses: actions/checkout@v4
+      
+      - name: Checkout repository
+        if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
+        uses: actions/checkout@v4
 
       - name: "⬇️ Download Artifact (specific project)"
         if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
@@ -229,7 +234,7 @@ jobs:
   # 5️⃣ DEPLOY TO IIS (PROD)
   # =======================================
   deploy_to_iis:
-    name: "🚀 Deploy to IIS (Production)"
+    name: "🚀 Deploy to IIS"
     needs: [prepare_backup, run_e2e_tests]
     if: >
       ${{
@@ -303,4 +308,23 @@ jobs:
             Write-Host "Deployment completed successfully."
           }
           
-
+  run_smoke_tests:
+      name: "🧪 Run Smoke Tests"
+      needs: deploy_to_iis
+      if: ${{ github.ref == 'refs/heads/Production' && inputs.e2e_smoke_tests_json != '' }}
+      runs-on: ${{ fromJson(inputs.runner_tag) }}
+      strategy:
+        matrix:
+          test_command: ${{ fromJson(inputs.e2e_smoke_tests_json) }}
+      steps:
+        - name: "Run Maven test"
+          shell: pwsh
+          run: |
+            Write-Host "🧪 Running: ${{ matrix.test_command }}"
+            & ${{ matrix.test_command }}
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "✅ Tests passed successfully."
+            } else {
+              Write-Error "❌ Tests failed with exit code $LASTEXITCODE"
+              exit $LASTEXITCODE
+            }
