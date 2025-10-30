@@ -65,7 +65,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
       - name: "Deploy to Test IIS Site"
-        shell: powershell
+        shell: pwsh
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
           $siteTestPath = "${{ matrix.deploy_testing_path }}"
@@ -144,10 +144,10 @@ jobs:
         run: dir C:\actions-runner\_work\UVC.Websites\UVC.Websites\Klk
 
       - name: "Run Maven test"
-        shell: powershell
+        shell: pwsh
         run: |
           Write-Host "🧪 Running: ${{ matrix.test_command }}"
-          Invoke-Expression "${{ matrix.test_command }}"
+          & ${{ matrix.test_command }}
           if ($LASTEXITCODE -eq 0) {
             Write-Host "✅ Tests passed successfully."
           } else {
