@@ -58,33 +58,49 @@ jobs:
         id: create_backup
         shell: pwsh
         run: |
-          $deployPath = "${{ matrix.deploy_target_path }}";
-          $parentDir = Split-Path $deployPath -Parent;
-          $backupRoot = Join-Path $parentDir "backups";
-          
+          $deployPath = "${{ matrix.deploy_target_path }}"
+          $parentDir = Split-Path $deployPath -Parent
+          $backupRoot = Join-Path $parentDir "backups"
+
           if (!(Test-Path $backupRoot)) {
-            New-Item -ItemType Directory -Path $backupRoot | Out-Null;
+            New-Item -ItemType Directory -Path $backupRoot | Out-Null
           }
-          
-          $rawName = Split-Path $deployPath -Leaf;
-          $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "");
-          $date = Get-Date -Format "yyyy-MM-dd";
-          $i = 1;
-          
-          while (Test-Path "$backupRoot\$siteName-$date-$i") { 
-            $i++;
-          }
-          
-          $backupFolder = "$backupRoot\$siteName-$date-$i";
-          
-          Write-Host "📦 Creating backup folder: $backupFolder";
-          New-Item -ItemType Directory -Path $backupFolder | Out-Null;
-          
+
+          $rawName = Split-Path $deployPath -Leaf
+          $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
+
+          # 🧠 Obtener la última fecha y hora de modificación del deployment actual
           if (Test-Path $deployPath) {
-            Write-Host "📂 Copying from $deployPath → $backupFolder";
-            Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force;
+            $lastModifiedItem = Get-ChildItem -Recurse -Path $deployPath -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 1
+
+            if ($lastModifiedItem) {
+              $dateTime = $lastModifiedItem.LastWriteTime.ToString("yyyy-MM-dd-HH-mm")
+              Write-Host "📅 Última modificación detectada: $dateTime"
+            } else {
+              Write-Host "⚠️ No se encontraron archivos dentro del deployment. Usando fecha actual."
+              $dateTime = (Get-Date).ToString("yyyy-MM-dd-HH-mm")
+            }
           } else {
-            Write-Host "⚠️ No existing deployment found.";
+            Write-Host "⚠️ Ruta de deployment no encontrada. Usando fecha actual."
+            $dateTime = (Get-Date).ToString("yyyy-MM-dd-HH-mm")
+          }
+
+          # Crear nombre versionado para el backup con la fecha + hora del último cambio
+          $i = 1
+          while (Test-Path "$backupRoot\$siteName-$dateTime-$i") { $i++ }
+          $backupFolder = "$backupRoot\$siteName-$dateTime-$i"
+
+          Write-Host "📦 Creando carpeta de backup: $backupFolder"
+          New-Item -ItemType Directory -Path $backupFolder | Out-Null
+
+          if (Test-Path $deployPath) {
+            Write-Host "📂 Copiando desde $deployPath → $backupFolder"
+            Copy-Item -Path "$deployPath\*" -Destination $backupFolder -Recurse -Force
+            Write-Host "✅ Backup completado con éxito."
+          } else {
+            Write-Host "⚠️ No se encontró el deployment original, no se generó backup."
           }
 
   # =======================================
