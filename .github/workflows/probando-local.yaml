@@ -50,7 +50,7 @@ jobs:
   deploy_to_site_test:
     name: "🚀 Deploy to IIS (Testing Site)"
     needs: build_projects
-    if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
+    #if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
