@@ -199,13 +199,35 @@ jobs:
           $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
           if (-Not (Test-Path $msdeploy)) { $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" }
 
+          # 🧠 Construir dinámicamente los argumentos -skip basados en tipo real (folder vs file)
+          $skipArgs = @()
+          $skipItems = '${{ inputs.skip_items_json }}'
+
+          if ($skipItems -ne '') {
+            $items = $skipItems | ConvertFrom-Json
+            foreach ($name in $items) {
+              $fullPath = Join-Path $publishPath $name
+              if (Test-Path $fullPath -PathType Container) {
+                # 🟩 Es una carpeta real
+                $skipArgs += "-skip:objectName=dirPath,absolutePath='.*[\\/]({0})($|[\\/])'".Replace("{0}", [Regex]::Escape($name))
+              } elseif (Test-Path $fullPath -PathType Leaf) {
+                # 🟦 Es un archivo real
+                $skipArgs += "-skip:objectName=filePath,absolutePath='.*[\\/]{0}$'".Replace("{0}", [Regex]::Escape($name))
+              } else {
+                Write-Warning "⚠️ No se encontró '$name' dentro de $publishPath — ignorando detección de tipo."
+              }
+            }
+          }
+
           Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
           Write-Host "📦 Source: $publishPath"
+          Write-Host "🧩 Skip arguments: $($skipArgs -join ' ')"
 
           & $msdeploy `
             -verb:sync `
             -source:dirPath="$publishPath" `
             -dest:dirPath="$destPath" `
+            @skipArgs `
             -useCheckSum `
             -allowUntrusted `
             -enableRule:AppOffline `
