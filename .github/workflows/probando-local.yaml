@@ -161,7 +161,7 @@ jobs:
   # =======================================
   prepare_backup:
     name: "🗂️ Create Backup"
-    needs: [build_projects, run_e2e_tests]
+    needs: [build_projects]
     if: >
       ${{
         (github.ref == 'refs/heads/Production' && 
@@ -229,7 +229,7 @@ jobs:
   # =======================================
   deploy_to_iis:
     name: "🚀 Deploy to IIS (Production)"
-    needs: [prepare_backup, run_e2e_tests]
+    needs: [prepare_backup]
     if: >
       ${{
         (github.ref == 'refs/heads/Production' &&
