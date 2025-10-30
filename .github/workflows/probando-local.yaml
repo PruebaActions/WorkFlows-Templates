@@ -219,8 +219,10 @@ jobs:
   # =======================================
   deploy_to_iis:
     name: "🚀 Deploy to IIS (Production)"
-    needs: [prepare_backup] #run_e2e_tests
+    #needs: [prepare_backup] #run_e2e_tests
     #if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
+    needs: ${{ github.ref == 'refs/heads/Production' && 'run_e2e_tests' || 'prepare_backup' }}
+    if: ${{ github.ref == 'refs/heads/Production' && (needs.run_e2e_tests.result == 'success' || success()) || github.ref == 'refs/heads/Development' }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
