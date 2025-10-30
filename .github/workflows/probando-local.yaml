@@ -56,7 +56,7 @@ jobs:
     steps:
       - name: "Create Dynamic Backup Folder"
         id: create_backup
-        shell: powershell
+        shell: pwsh
         run: |
           $deployPath = "${{ matrix.deploy_target_path }}";
           $parentDir = Split-Path $deployPath -Parent;
