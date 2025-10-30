@@ -50,7 +50,7 @@ jobs:
   deploy_to_site_test:
     name: "🚀 Deploy to IIS (Testing Site)"
     needs: build_projects
-    if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref_name == 'Production' }}
+    if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
@@ -125,7 +125,7 @@ jobs:
   run_e2e_tests:
     name: "🧪 Run E2E Tests"
     needs: deploy_to_site_test
-    if: ${{ github.ref_name == 'Production' && inputs.e2e_tests_json != '' }}
+    if: ${{ github.ref == 'refs/heads/Production' && inputs.e2e_tests_json != '' }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
       matrix:
@@ -164,10 +164,10 @@ jobs:
     needs: [build_projects, run_e2e_tests]
     if: >
       ${{
-        (github.ref_name == 'Production' && 
+        (github.ref == 'refs/heads/Production' && 
          (needs.build_projects.result == 'success') && 
          (needs.run_e2e_tests.result == 'success')) ||
-        (github.ref_name == 'Development' &&
+        (github.ref == 'refs/heads/Development' &&
          (needs.build_projects.result == 'success'))
       }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
@@ -232,10 +232,10 @@ jobs:
     needs: [prepare_backup, run_e2e_tests]
     if: >
       ${{
-        (github.ref_name == 'Production' &&
+        (github.ref == 'refs/heads/Production' &&
          needs.prepare_backup.result == 'success' &&
          needs.run_e2e_tests.result == 'success') ||
-        (github.ref_name == 'Development' &&
+        (github.ref == 'refs/heads/Development' &&
          needs.prepare_backup.result == 'success')
       }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
