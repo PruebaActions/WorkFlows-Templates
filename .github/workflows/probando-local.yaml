@@ -192,7 +192,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
       - name: "Deploy to IIS"
-        shell: powershell
+        shell: pwsh
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
           $destPath = "${{ matrix.deploy_target_path }}"
