@@ -56,15 +56,22 @@ jobs:
       matrix: ${{ fromJson(inputs.projects_json) }}
       max-parallel: 1
     steps:
+      - name: "🚀 Skip deploy in Development"
+        if: github.ref == 'refs/heads/Development'
+        run: |
+          Write-Host "Development branch detected. Skipping deploy to test IIS site."
+    
       - uses: actions/checkout@v4
 
       - name: "⬇️ Download Artifact (specific project)"
+        if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.project_name }}
           path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
       - name: "Deploy to Test IIS Site"
+        if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
         shell: pwsh
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
@@ -131,7 +138,6 @@ jobs:
       matrix:
         test_command: ${{ fromJson(inputs.e2e_tests_json) }}
     steps:
-
       - name: "Check if running in Development"
         if: github.ref == 'refs/heads/Development'
         run: |
