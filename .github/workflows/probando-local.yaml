@@ -214,9 +214,4 @@ jobs:
             -retryAttempts:3 `
             -verbose
           
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Deployment failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          } else {
-            Write-Host "Deployment completed successfully."
-          }
+
