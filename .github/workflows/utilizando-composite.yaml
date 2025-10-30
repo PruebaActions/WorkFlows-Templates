@@ -73,9 +73,9 @@ jobs:
           name: ${{ matrix.project_name }}
           path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
-      - name: "Deploy to Test IIS Site"
+      - name: "Deploy to Test Site in IIS"
         if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
-        uses: ./.github/actions/deploy-to-iis
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
         with:
           project_name: ${{ matrix.project_name }}
           publish_path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
