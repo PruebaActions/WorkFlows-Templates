@@ -12,6 +12,12 @@ on:
       e2e_tests_json:
         required: false
         type: string
+      skip_items_json:
+        required: false
+        type: string
+      e2e_smoke_tests_json:
+        required: false
+        type: string
 
 jobs:
   # =======================================
@@ -19,7 +25,8 @@ jobs:
   # =======================================
   build_projects:
     name: "🔨 Build Projects"
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    runs-on:
+      group: Code-runners
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
       max-parallel: 1
@@ -34,122 +41,108 @@ jobs:
           project_type: ${{ matrix.project_type }}
           output_path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
 
-      - name: "📦 Upload Artifact (per project)"
-        uses: actions/upload-artifact@v4
+      - name: "Upload Artifact (per project)"
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.project_name }}
           path: ${{ github.workspace }}/publish/${{ matrix.project_name }}
 
   # =======================================
-  # 2️⃣ CREATE BACKUP
+  # 2️⃣ DEPLOY TO TEST SITE
+  # =======================================
+  deploy_to_site_test:
+    name: "🚀 Deploy to Testing Site in IIS"
+    needs: build_projects
+    runs-on: [self-hosted, windows, x64, iis-dev]
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1
+    steps:
+      - name: "Skip deploy in Development"
+        if: github.ref == 'refs/heads/Development'
+        run: |
+          Write-Host "🟡 Development branch detected. Skipping deploy to test IIS site."
+
+      - name: "Checkout repository"
+        if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
+        uses: actions/checkout@v4
+
+      - name: "Download Artifact (specific project)"
+        if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.project_name }}
+          path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
+
+      - name: "Deploy to Test IIS Site"
+        if: ${{ contains(inputs.projects_json, 'deploy_testing_path') && github.ref == 'refs/heads/Production' }}
+        uses: ./.github/actions/deploy-to-iis
+        with:
+          project_name: ${{ matrix.project_name }}
+          publish_path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
+          destination_path: ${{ matrix.deploy_testing_path }}
+          skip_items_json: ${{ inputs.skip_items_json }}
+
+  # =======================================
+  # 3️⃣ RUN E2E TESTS
+  # =======================================
+  run_e2e_tests:
+    name: "🧪 Run E2E Tests"
+    needs: deploy_to_site_test
+    runs-on: [self-hosted, windows, x64, iis-dev]
+    strategy:
+      matrix:
+        test_command: ${{ fromJson(inputs.e2e_tests_json) }}
+    steps:
+      - name: "Skip tests in Development"
+        if: github.ref == 'refs/heads/Development'
+        run: |
+          Write-Host "🟡 Development branch detected. Skipping real E2E tests."
+
+      - name: "Run E2E Maven Tests"
+        if: github.ref == 'refs/heads/Production' && inputs.e2e_tests_json != ''
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/run-tests@Production
+        with:
+          test_command: ${{ matrix.test_command }}
+
+  # =======================================
+  # 4️⃣ CREATE BACKUP
   # =======================================
   prepare_backup:
     name: "🗂️ Create Backup"
-    needs: build_projects
+    needs: [build_projects, run_e2e_tests]
+    if: >
+      ${{
+        (github.ref == 'refs/heads/Production' &&
+         (needs.build_projects.result == 'success') &&
+         (needs.run_e2e_tests.result == 'success')) ||
+        (github.ref == 'refs/heads/Development' &&
+         (needs.build_projects.result == 'success'))
+      }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
       max-parallel: 1
     steps:
       - name: "Create Dynamic Backup Folder"
-        id: create_backup
-        shell: pwsh
-        run: |
-          $deployPath = "${{ matrix.deploy_target_path }}"
-          $parentDir = Split-Path $deployPath -Parent
-          $backupRoot = Join-Path $parentDir "backups"
-
-          if (!(Test-Path $backupRoot)) {
-            New-Item -ItemType Directory -Path $backupRoot | Out-Null
-          }
-
-          $rawName = Split-Path $deployPath -Leaf
-          $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
-          $date = Get-Date -Format "yyyy-MM-dd"
-          $i = 1
-          while (Test-Path "$backupRoot\$siteName-$date-$i") { $i++ }
-          $backupFolder = "$backupRoot\$siteName-$date-$i"
-
-          Write-Host "📦 Creating backup folder: $backupFolder"
-          New-Item -ItemType Directory -Path $backupFolder | Out-Null
-
-          if (Test-Path $deployPath) {
-            Write-Host "📂 Copying from $deployPath → $backupFolder"
-            Copy-Item "$deployPath\*" -Destination $backupFolder -Recurse -Force
-          } else {
-            Write-Host "⚠️ No existing deployment found."
-          }
-
-  # =======================================
-  # 3️⃣ DEPLOY TO TEST SITE
-  # =======================================
-  deploy_to_site_test:
-    name: "🚀 Deploy to IIS (Testing Site)"
-    needs: build_projects
-    if: ${{ contains(inputs.projects_json, 'deploy_testing_path') }}
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: "⬇️ Download Artifact (specific project)"
-        uses: actions/download-artifact@v4
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/create-backup@Production
         with:
-          name: ${{ matrix.project_name }}
-          path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
-
-      - name: "Deploy to Test IIS Site"
-        shell: pwsh
-        run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
-          $siteTestPath = "${{ matrix.deploy_testing_path }}"
-          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-          if (-Not (Test-Path $msdeploy)) {
-            $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-          }
-
-          Write-Host "🚀 Deploying from $publishPath to $siteTestPath"
-          & $msdeploy `
-            -verb:sync `
-            -source:dirPath="$publishPath" `
-            -dest:dirPath="$siteTestPath" `
-            -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
-            -useCheckSum -allowUntrusted -enableRule:AppOffline -enableRule:DoNotDeleteRule -retryAttempts:3 -verbose
+          deploy_target_path: ${{ matrix.deploy_target_path }}
 
   # =======================================
-  # 4️⃣ RUN E2E TESTS
-  # =======================================
-  run_e2e_tests:
-    name: "🧪 Run E2E Tests"
-    needs: deploy_to_site_test
-    if: ${{ inputs.e2e_tests_json != '' }}
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    strategy:
-      matrix:
-        test_command: ${{ fromJson(inputs.e2e_tests_json) }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: "Run Maven test"
-        shell: pwsh
-        run: |
-          Write-Host "🧪 Running: ${{ matrix.test_command }}"
-          Invoke-Expression "${{ matrix.test_command }}"
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "✅ Tests passed successfully."
-          } else {
-            Write-Error "❌ Tests failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          }
-
-  # =======================================
-  # 5️⃣ DEPLOY TO IIS (PROD)
+  # 5️⃣ DEPLOY TO IIS (FINAL)
   # =======================================
   deploy_to_iis:
-    name: "🚀 Deploy to IIS (Production)"
+    name: "🚀 Deploy to IIS (Final)"
     needs: [prepare_backup, run_e2e_tests]
-    if: ${{ always() && needs.run_e2e_tests.result == 'success' }}
+    if: >
+      ${{
+        (github.ref == 'refs/heads/Production' &&
+         needs.prepare_backup.result == 'success' &&
+         needs.run_e2e_tests.result == 'success') ||
+        (github.ref == 'refs/heads/Development' &&
+         needs.prepare_backup.result == 'success')
+      }}
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
@@ -157,26 +150,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "⬇️ Download Artifact (specific project)"
-        uses: actions/download-artifact@v4
+      - name: "Download Artifact (specific project)"
+        uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.project_name }}
           path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
 
       - name: "Deploy to IIS"
-        shell: pwsh
-        run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\artifact\${{ matrix.project_name }}"
-          $destPath = "${{ matrix.deploy_target_path }}"
-          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-          if (-Not (Test-Path $msdeploy)) { $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" }
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/deploy-to-iis@Production
+        with:
+          project_name: ${{ matrix.project_name }}
+          publish_path: ${{ github.workspace }}/artifact/${{ matrix.project_name }}
+          destination_path: ${{ matrix.deploy_target_path }}
+          skip_items_json: ${{ inputs.skip_items_json }}
 
-          Write-Host "🚀 Deploying ${{ matrix.project_name }} to $destPath"
-          Write-Host "📦 Source: $publishPath"
-
-          & $msdeploy `
-            -verb:sync `
-            -source:dirPath="$publishPath" `
-            -dest:dirPath="$destPath" `
-            -skip:objectName=filePath,absolutePath=.*\\web\\.config$ `
-            -useCheckSum -allowUntrusted -enableRule:DoNotDeleteRule -retryAttempts:3 -verbose
+  # =======================================
+  # 6️⃣ RUN SMOKE TESTS
+  # =======================================
+  run_smoke_tests:
+    name: "🔥 Run Smoke Tests"
+    needs: deploy_to_iis
+    if: ${{ github.ref == 'refs/heads/Production' && inputs.e2e_smoke_tests_json != '' }}
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix:
+        test_command: ${{ fromJson(inputs.e2e_smoke_tests_json) }}
+    steps:
+      - name: "Run Smoke Tests"
+        uses: GBS-International-Inc/WorkFlows_Templates/.github/actions/run-tests@Production
+        with:
+          test_command: ${{ matrix.test_command }}
