@@ -25,7 +25,7 @@ jobs:
   # =======================================
   build_projects:
     name: "🔨 Build Projects"
-    runs-on: [self-hosted, windows, x64, laptop]
+    runs-on: windows-latest #[self-hosted, windows, x64, laptop]
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
       max-parallel: 1
