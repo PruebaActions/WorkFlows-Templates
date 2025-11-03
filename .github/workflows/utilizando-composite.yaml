@@ -29,6 +29,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(inputs.projects_json) }}
       max-parallel: 1
+    if: ${{matrix.skip_deploy != 'true'}}
     steps:
       - uses: actions/checkout@v4
 
