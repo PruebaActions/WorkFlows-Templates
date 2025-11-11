@@ -20,7 +20,7 @@ on:
         required: true
 
 jobs:
-    build_clickonce:
+  build_clickonce:
     name: "Modify Files & Build ClickOnce"
     runs-on: [self-hosted, windows, x64, laptop]
     # needs: sql_scripts_execution
