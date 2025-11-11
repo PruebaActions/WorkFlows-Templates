@@ -44,11 +44,12 @@ jobs:
           msbuild ./AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj `
             /t:Publish `
             /p:Configuration=Release `
-            /p:Platform="AnyCPU" `
+            /p:Platform="Any CPU" `
             /p:PublishDir="$publishDir" `
             /p:InstallUrl="$installUrl" `
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
+            /p:OutputPath="bin\Release" `
             /v:detailed
 
       - name: Verify Output
