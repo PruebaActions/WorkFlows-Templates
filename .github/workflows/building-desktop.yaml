@@ -18,6 +18,9 @@ on:
       sln_path:
         type: string
         required: true
+      appConfigPath:
+        type: string
+        required: true
 
 jobs:
   build_clickonce:
