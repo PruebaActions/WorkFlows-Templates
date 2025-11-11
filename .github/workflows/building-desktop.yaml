@@ -1,0 +1,59 @@
+name: Build ClickOnce Template
+
+on:
+  workflow_call:
+    inputs:
+      publishDir:
+        description: "Ruta física donde se publicará (IIS path)"
+        required: true
+        type: string
+      installUrl:
+        description: "URL pública del sitio IIS"
+        required: true
+        type: string
+      appVersion:
+        description: "Versión de la aplicación"
+        required: true
+        type: string
+
+jobs:
+  build_publish:
+    runs-on: [self-hosted, windows, x64, laptop]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore NuGet packages
+        run: nuget restore ./AFIFSALESSYSTEM.sln
+
+      - name: Build and Publish ClickOnce
+        shell: pwsh
+        run: |
+          Write-Host "Building and Publishing ClickOnce..."
+          $publishDir = "${{ inputs.publishDir }}"
+          $installUrl = "${{ inputs.installUrl }}"
+          $appVersion = "${{ inputs.appVersion }}"
+
+          Write-Host "Publish Directory: $publishDir"
+          Write-Host "Install URL: $installUrl"
+          Write-Host "Application Version: $appVersion"
+
+          msbuild ./AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj `
+            /t:Publish `
+            /p:Configuration=Release `
+            /p:Platform="Any CPU" `
+            /p:PublishDir="$publishDir" `
+            /p:InstallUrl="$installUrl" `
+            /p:ApplicationVersion="$appVersion" `
+            /p:MinimumRequiredVersion="$appVersion" `
+            /v:detailed
+
+      - name: Verify Output
+        shell: pwsh
+        run: |
+          $publishDir = "${{ inputs.publishDir }}"
+          Write-Host "Checking generated files in $publishDir"
+          Get-ChildItem -Path $publishDir -Recurse | 
+            Where-Object { $_.Extension -in '.htm','.application','.exe' } |
+            Select-Object FullName
