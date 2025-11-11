@@ -12,7 +12,10 @@ on:
       installUrl:
         type: string
         required: true
-      appVersion:
+      project_path:
+        type: string
+        required: true
+      sln_path:
         type: string
         required: true
 
@@ -26,8 +29,8 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
+        # with:
+        #   ref: ${{ github.ref_name }}
 
       - name: Generate dynamic version
         id: version
@@ -87,14 +90,14 @@ jobs:
           }
 
       - name: Restore NuGet packages
-        run: nuget restore ./AFIFSALESSYSTEM.sln
+        run: nuget restore "${{ inputs.sln_path }}"
 
       - name: Build and Publish ClickOnce
         shell: pwsh
         run: |
           $appVersion = "${{ steps.version.outputs.appVersion }}"
           Write-Host "Building ClickOnce package with version $appVersion"
-          msbuild ./AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj `
+          msbuild "${{ inputs.project_path }}" `
             /t:Publish `
             /p:Configuration=Release `
             /p:Platform="Any CPU" `
