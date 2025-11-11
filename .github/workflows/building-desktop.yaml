@@ -108,7 +108,9 @@ jobs:
             /p:InstallUrl="${{ inputs.installUrl }}" `
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
+            /p:OutputPath="bin\Release" `
             /v:minimal
+            
 
       - name: Verify publish output
         shell: pwsh
