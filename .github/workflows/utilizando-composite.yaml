@@ -87,7 +87,7 @@ jobs:
   # 3️⃣ RUN E2E TESTS
   # =======================================
   run_e2e_tests:
-    name: "🧪 Run E2E Tests"
+    name: "Run E2E Tests"
     needs: deploy_to_site_test
     runs-on: ${{ fromJson(inputs.runner_tag) }}
     strategy:
@@ -109,7 +109,7 @@ jobs:
   # 4️⃣ CREATE BACKUP
   # =======================================
   prepare_backup:
-    name: "🗂️ Create Backup"
+    name: "Create Backup"
     needs: [build_projects, run_e2e_tests]
     if: >
       ${{

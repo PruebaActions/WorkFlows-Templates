@@ -3,60 +3,111 @@ name: Build ClickOnce Template
 on:
   workflow_call:
     inputs:
+      assemblyVersion:
+        type: string
+        required: true
       publishDir:
-        description: "Ruta física donde se publicará (IIS path)"
-        required: true
         type: string
+        required: true
       installUrl:
-        description: "URL pública del sitio IIS"
-        required: true
         type: string
+        required: true
       appVersion:
-        description: "Versión de la aplicación"
-        required: true
         type: string
+        required: true
 
 jobs:
-  build_publish:
+    build_clickonce:
+    name: "Modify Files & Build ClickOnce"
     runs-on: [self-hosted, windows, x64, laptop]
+    needs: sql_scripts_execution
+    if: ${{ needs.sql_scripts_execution.outputs.success == 'true' }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout current branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Generate dynamic version
+        id: version
+        shell: pwsh
+        run: |
+          $today = Get-Date -Format "yyyy.MM.dd"
+          $baseVersion = $today
+          $runCounterFile = "$env:GITHUB_WORKSPACE/.run-counter"
+
+          if (Test-Path $runCounterFile) {
+            $lastRun = Get-Content $runCounterFile | Select-Object -Last 1
+            $runNumber = [int]$lastRun + 1
+          } else {
+            $runNumber = 1
+          }
+
+          $version = "$baseVersion.$runNumber"
+          Write-Host "Generated version: $version"
+          $version | Out-File -FilePath $runCounterFile
+          echo "appVersion=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Replace App.config
+        shell: pwsh
+        run: |
+          $source = "${{ inputs.appConfigPath }}"
+          $destination = "AFIFSALESSYSTEM/App.config"
+
+          if (Test-Path $source) {
+            Write-Host "Replacing App.config with $source"
+            Copy-Item -Path $source -Destination $destination -Force
+          } else {
+            Write-Error "App.config not found: $source"
+            exit 1
+          }
+
+      - name: Update AssemblyInfo version
+        shell: pwsh
+        run: |
+          $assemblyInfo = "AFIFSALESSYSTEM/Properties/AssemblyInfo.cs"
+          $assemblyVersion = "${{ inputs.assemblyVersion }}"
+          $appVersion = "${{ steps.version.outputs.appVersion }}"
+          Write-Host "Updating AssemblyVersion to $assemblyVersion"
+          Write-Host "Updating FileVersion to $appVersion"
+
+          (Get-Content $assemblyInfo) |
+            ForEach-Object {
+              $_ -replace 'AssemblyVersion\(".*"\)', "AssemblyVersion(`"$assemblyVersion`")" `
+                 -replace 'AssemblyFileVersion\(".*"\)', "AssemblyFileVersion(`"$appVersion`")"
+            } | Set-Content $assemblyInfo
+
+      - name: Validate publish directory
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${{ inputs.publishDir }}")) {
+            Write-Host "Creating publish directory..."
+            New-Item -ItemType Directory -Force -Path "${{ inputs.publishDir }}"
+          }
 
       - name: Restore NuGet packages
-        shell: powershell
-        run: |
-          nuget restore ./AFIFSALESSYSTEM.sln
+        run: nuget restore ./AFIFSALESSYSTEM.sln
 
       - name: Build and Publish ClickOnce
         shell: pwsh
         run: |
-          Write-Host "Building and Publishing ClickOnce..."
-          $publishDir = "${{ inputs.publishDir }}"
-          $installUrl = "${{ inputs.installUrl }}"
-          $appVersion = "${{ inputs.appVersion }}"
-
-          Write-Host "Publish Directory: $publishDir"
-          Write-Host "Install URL: $installUrl"
-          Write-Host "Application Version: $appVersion"
-
+          $appVersion = "${{ steps.version.outputs.appVersion }}"
+          Write-Host "Building ClickOnce package with version $appVersion"
           msbuild ./AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj `
             /t:Publish `
             /p:Configuration=Release `
             /p:Platform="Any CPU" `
-            /p:PublishDir="$publishDir" `
-            /p:InstallUrl="$installUrl" `
+            /p:PublishDir="${{ inputs.publishDir }}" `
+            /p:InstallUrl="${{ inputs.installUrl }}" `
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
-            /p:OutputPath="bin\Release" `
-            /v:detailed
+            /v:minimal
 
-      - name: Verify Output
+      - name: Verify publish output
         shell: pwsh
         run: |
-          $publishDir = "${{ inputs.publishDir }}"
-          Write-Host "Checking generated files in $publishDir"
-          Get-ChildItem -Path $publishDir -Recurse | 
-            Where-Object { $_.Extension -in '.htm','.application','.exe' } |
+          Write-Host "Published files:"
+          Get-ChildItem "${{ inputs.publishDir }}" -Recurse | 
+            Where-Object { $_.Extension -in '.application', '.htm', '.exe' } |
             Select-Object FullName
