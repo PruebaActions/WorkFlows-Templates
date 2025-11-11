@@ -25,7 +25,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Restore NuGet packages
-        run: nuget restore ./AFIFSALESSYSTEM.sln
+        shell: powershell
+        run: |
+          nuget restore ./AFIFSALESSYSTEM.sln
 
       - name: Build and Publish ClickOnce
         shell: pwsh
@@ -42,7 +44,7 @@ jobs:
           msbuild ./AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj `
             /t:Publish `
             /p:Configuration=Release `
-            /p:Platform="Any CPU" `
+            /p:Platform="AnyCPU" `
             /p:PublishDir="$publishDir" `
             /p:InstallUrl="$installUrl" `
             /p:ApplicationVersion="$appVersion" `
