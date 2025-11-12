@@ -91,20 +91,6 @@ jobs:
             Write-Host "Creating publish directory..."
             New-Item -ItemType Directory -Force -Path "${{ inputs.publishDir }}"
           }
-      - name: Clean hardcoded PublishUrl in .csproj.user
-        shell: pwsh
-        run: |
-          $userFile = "./AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj.user"
-          if (Test-Path $userFile) {
-            Write-Host "Cleaning PublishUrl from $userFile..."
-            (Get-Content $userFile) |
-              ForEach-Object {
-                $_ -replace '<PublishUrl>.*</PublishUrl>', "<PublishUrl></PublishUrl>"
-              } | Set-Content $userFile
-          }
-          else {
-            Write-Host "No .csproj.user found. Skipping cleanup."
-          }
 
       - name: Restore NuGet packages
         run: nuget restore "${{ inputs.sln_path }}"
@@ -112,35 +98,20 @@ jobs:
       - name: Build and Publish ClickOnce
         shell: pwsh
         run: |
-
-          $vsPath = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
-          if (-not (Test-Path $vsPath)) {
-            Write-Error "VsDevCmd.bat not found. Ensure full Visual Studio is installed with ClickOnce Publishing Tools."
-            exit 1
-          }
-          Write-Host "✅ Loading Visual Studio environment..."
-          & cmd /c "`"$vsPath`" && set" | Out-File vs_env.txt
-          Write-Host "Environment loaded. Launching MSBuild with IDE context..."
-
           $appVersion = "${{ steps.version.outputs.appVersion }}"
           Write-Host "Building ClickOnce package with version $appVersion"
-
-          & cmd /c "`"$vsPath`" && msbuild `"`"${{ inputs.project_path }}`"` `
+          msbuild "${{ inputs.project_path }}" `
             /t:Publish `
             /p:Configuration=Release `
-            /p:Platform=`"Any CPU`" `
-            /p:IsWebBootstrapper=true `
+            /p:Platform="Any CPU" `
+            /p:PublishDir="${{ inputs.publishDir }}" `
+            /p:InstallUrl="${{ inputs.installUrl }}" `
+            /p:ApplicationVersion="$appVersion" `
+            /p:MinimumRequiredVersion="$appVersion" `
             /p:CreateWebPageOnPublish=true `
             /p:WebPageFileName=publish.htm `
-            /p:PublishDir=`"${{ inputs.publishDir }}`"` `
-            /p:PublishUrl=`"${{ inputs.publishDir }}`"` `
-            /p:DeploymentPublishDir=`"${{ inputs.publishDir }}`"` `
-            /p:InstallUrl=`"${{ inputs.installUrl }}`"` `
-            /p:ApplicationVersion=`"${{ steps.version.outputs.appVersion }}`"` `
-            /p:MinimumRequiredVersion=`"${{ steps.version.outputs.appVersion }}`"` `
-            /p:OutputPath=`"bin\Release`" `
-            /p:IsDesktopBuild=false `
-            /v:minimal"
+            /p:OutputPath="bin\Release" `
+            /v:detailed
             
 
       - name: Verify publish output
