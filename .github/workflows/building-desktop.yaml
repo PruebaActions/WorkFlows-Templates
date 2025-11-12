@@ -91,7 +91,15 @@ jobs:
             Write-Host "Creating publish directory..."
             New-Item -ItemType Directory -Force -Path "${{ inputs.publishDir }}"
           }
-
+      - name: Force PublishDir override (clean .csproj)
+        shell: pwsh
+        run: |
+          $proj = "${{ inputs.project_path }}"
+          Write-Host "Cleaning PublishUrl from $proj to allow dynamic override..."
+          (Get-Content $proj) |
+            ForEach-Object { $_ -replace '<PublishUrl>.*</PublishUrl>', '<PublishUrl></PublishUrl>' } |
+            Set-Content $proj
+            
       - name: Restore NuGet packages
         run: nuget restore "${{ inputs.sln_path }}"
 
