@@ -118,7 +118,7 @@ jobs:
             /p:IsWebBootstrapper=true `
             /p:CreateWebPageOnPublish=true `
             /p:WebPageFileName=publish.htm `
-            /p:PublishDir=`"${{ inputs.publishDir }}`"` `
+            /property:PublishDir=`"${{ inputs.publishDir }}`"` `
             /p:InstallUrl=`"${{ inputs.installUrl }}`"` `
             /p:ApplicationVersion=`"${{ steps.version.outputs.appVersion }}`"` `
             /p:MinimumRequiredVersion=`"${{ steps.version.outputs.appVersion }}`"` `
