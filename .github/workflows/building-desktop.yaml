@@ -95,23 +95,88 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore "${{ inputs.sln_path }}"
 
-      - name: Build and Publish ClickOnce
+
+      - name: Build and Publish ClickOnce (MSBuild + devenv.com)
         shell: pwsh
         run: |
+          # Variables absolutas
+          $workspace = (Resolve-Path "$env:GITHUB_WORKSPACE").Path
+          $projectPath = Join-Path $workspace "AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj"
+          $publishDir = "C:\test\wwwroot\AFIFSALESSYSTEM\"
           $appVersion = "${{ steps.version.outputs.appVersion }}"
-          Write-Host "Building ClickOnce package with version $appVersion"
-          msbuild "${{ inputs.project_path }}" `
+          $installUrl = "https://www.keyviewsales.com/AFIFSALESSYSTEM/"
+          
+          Write-Host "Resolved project path: $projectPath"
+          Write-Host "Publish output directory: $publishDir"
+
+          # Limpia posibles residuos previos
+          if (Test-Path $publishDir) {
+            Write-Host "Cleaning old publish folder..."
+            Remove-Item -Recurse -Force $publishDir
+          }
+          New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
+
+          # 1️⃣ Compila y publica con MSBuild (aplica versiones dinámicas)
+          Write-Host "Building ClickOnce package with MSBuild (Version: $appVersion)..."
+          & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
+            "$projectPath" `
             /t:Publish `
             /p:Configuration=Release `
             /p:Platform="Any CPU" `
-            /p:PublishDir="${{ inputs.publishDir }}" `
-            /p:InstallUrl="${{ inputs.installUrl }}" `
-            /p:ApplicationVersion="$appVersion" `
-            /p:MinimumRequiredVersion="$appVersion" `
+            /p:IsWebBootstrapper=true `
             /p:CreateWebPageOnPublish=true `
             /p:WebPageFileName=publish.htm `
+            /p:PublishDir="$publishDir" `
+            /p:PublishUrl="$publishDir" `
+            /p:InstallUrl="$installUrl" `
+            /p:ApplicationVersion="$appVersion" `
+            /p:MinimumRequiredVersion="$appVersion" `
             /p:OutputPath="bin\Release" `
-            /v:detailed
+            /p:IsDesktopBuild=false `
+            /v:minimal
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "MSBuild failed. Stopping pipeline."
+            exit 1
+          }
+
+          # 2️⃣ Publica con devenv.com para generar el publish.htm oficial del IDE
+          $devenv = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com"
+          if (-not (Test-Path $devenv)) {
+            Write-Error "devenv.com not found. Ensure Visual Studio Community 2022 with ClickOnce Tools is installed."
+            exit 1
+          }
+
+          Write-Host "Publishing ClickOnce with devenv.com (for official publish.htm)..."
+          & "$devenv" "$projectPath" /Build "Release|Any CPU" /ProjectConfig "Release" /Publish "$publishDir"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "devenv.com publish failed. Check Visual Studio installation."
+            exit 1
+          }
+
+          Write-Host "✅ ClickOnce publish completed. Files generated at: $publishDir"
+          Write-Host "Contents:"
+          Get-ChildItem $publishDir -Recurse | Where-Object { $_.Extension -in ".application", ".exe", ".htm" } | Select-Object FullName
+
+
+      # - name: Build and Publish ClickOnce
+      #   shell: pwsh
+      #   run: |
+      #     $appVersion = "${{ steps.version.outputs.appVersion }}"
+      #     Write-Host "Building ClickOnce package with version $appVersion"
+      #     msbuild "${{ inputs.project_path }}" `
+      #       /t:Publish `
+      #       /p:Configuration=Release `
+      #       /p:Platform="Any CPU" `
+      #       /p:PublishDir="${{ inputs.publishDir }}" `
+      #       /p:InstallUrl="${{ inputs.installUrl }}" `
+      #       /p:ApplicationVersion="$appVersion" `
+      #       /p:MinimumRequiredVersion="$appVersion" `
+      #       /p:CreateWebPageOnPublish=true `
+      #       /p:WebPageFileName=publish.htm `
+      #       /p:OutputPath="bin\Release" `
+      #       /v:detailed
             
 
       - name: Verify publish output
