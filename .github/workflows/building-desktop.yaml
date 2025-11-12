@@ -108,8 +108,10 @@ jobs:
             /p:InstallUrl="${{ inputs.installUrl }}" `
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
+            /p:CreateWebPageOnPublish=true `
+            /p:WebPageFileName=publish.htm `
             /p:OutputPath="bin\Release" `
-            /v:minimal
+            /v:detailed
             
 
       - name: Verify publish output
