@@ -120,6 +120,7 @@ jobs:
             /p:WebPageFileName=publish.htm `
             /p:PublishDir=`"${{ inputs.publishDir }}`"` `
             /p:PublishUrl=`"${{ inputs.publishDir }}`"` `
+            /p:DeploymentPublishDir=`"${{ inputs.publishDir }}`"` `
             /p:InstallUrl=`"${{ inputs.installUrl }}`"` `
             /p:ApplicationVersion=`"${{ steps.version.outputs.appVersion }}`"` `
             /p:MinimumRequiredVersion=`"${{ steps.version.outputs.appVersion }}`"` `
