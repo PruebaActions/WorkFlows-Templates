@@ -114,15 +114,16 @@ jobs:
           & cmd /c "`"$vsPath`" && msbuild `"`"${{ inputs.project_path }}`"` `
             /t:Publish `
             /p:Configuration=Release `
-            /p:Platform="Any CPU" `
-            /p:PublishDir="${{ inputs.publishDir }}" `
-            /p:InstallUrl="${{ inputs.installUrl }}" `
-            /p:ApplicationVersion="$appVersion" `
-            /p:MinimumRequiredVersion="$appVersion" `
+            /p:Platform=`"Any CPU`" `
+            /p:IsWebBootstrapper=true `
             /p:CreateWebPageOnPublish=true `
             /p:WebPageFileName=publish.htm `
-            /p:OutputPath="bin\Release" `
-            /v:detailed
+            /p:PublishDir=`"${{ inputs.publishDir }}`"` `
+            /p:InstallUrl=`"${{ inputs.installUrl }}`"` `
+            /p:ApplicationVersion=`"${{ steps.version.outputs.appVersion }}`"` `
+            /p:MinimumRequiredVersion=`"${{ steps.version.outputs.appVersion }}`"` `
+            /p:OutputPath=`"bin\Release`" `
+            /v:minimal"
             
 
       - name: Verify publish output
