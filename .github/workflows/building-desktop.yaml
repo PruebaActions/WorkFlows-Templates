@@ -91,20 +91,20 @@ jobs:
             Write-Host "Creating publish directory..."
             New-Item -ItemType Directory -Force -Path "${{ inputs.publishDir }}"
           }
-      - name: Clean and override PublishDir inside .pubxml
+      - name: Clean hardcoded PublishUrl in .csproj.user
         shell: pwsh
         run: |
-          $pubxml = Get-ChildItem "./AFIFSALESSYSTEM/Properties/PublishProfiles" -Filter *.pubxml -Recurse | Select-Object -First 1
-          if (-not $pubxml) {
-            Write-Error "No .pubxml file found. Ensure the project has a PublishProfile configured."
-            exit 1
+          $userFile = "./AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj.user"
+          if (Test-Path $userFile) {
+            Write-Host "Cleaning PublishUrl from $userFile..."
+            (Get-Content $userFile) |
+              ForEach-Object {
+                $_ -replace '<PublishUrl>.*</PublishUrl>', "<PublishUrl></PublishUrl>"
+              } | Set-Content $userFile
           }
-
-          Write-Host "Cleaning PublishDir inside $($pubxml.FullName)"
-          (Get-Content $pubxml.FullName) |
-            ForEach-Object {
-              $_ -replace '<PublishDir>.*</PublishDir>', "<PublishDir>${{ inputs.publishDir }}</PublishDir>"
-            } | Set-Content $pubxml.FullName
+          else {
+            Write-Host "No .csproj.user found. Skipping cleanup."
+          }
 
       - name: Restore NuGet packages
         run: nuget restore "${{ inputs.sln_path }}"
