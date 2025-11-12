@@ -91,15 +91,21 @@ jobs:
             Write-Host "Creating publish directory..."
             New-Item -ItemType Directory -Force -Path "${{ inputs.publishDir }}"
           }
-      - name: Force PublishDir override (clean .csproj)
+      - name: Clean and override PublishDir inside .pubxml
         shell: pwsh
         run: |
-          $proj = "${{ inputs.project_path }}"
-          Write-Host "Cleaning PublishUrl from $proj to allow dynamic override..."
-          (Get-Content $proj) |
-            ForEach-Object { $_ -replace '<PublishUrl>.*</PublishUrl>', '<PublishUrl></PublishUrl>' } |
-            Set-Content $proj
-            
+          $pubxml = Get-ChildItem "./AFIFSALESSYSTEM/Properties/PublishProfiles" -Filter *.pubxml -Recurse | Select-Object -First 1
+          if (-not $pubxml) {
+            Write-Error "No .pubxml file found. Ensure the project has a PublishProfile configured."
+            exit 1
+          }
+
+          Write-Host "Cleaning PublishDir inside $($pubxml.FullName)"
+          (Get-Content $pubxml.FullName) |
+            ForEach-Object {
+              $_ -replace '<PublishDir>.*</PublishDir>', "<PublishDir>${{ inputs.publishDir }}</PublishDir>"
+            } | Set-Content $pubxml.FullName
+
       - name: Restore NuGet packages
         run: nuget restore "${{ inputs.sln_path }}"
 
