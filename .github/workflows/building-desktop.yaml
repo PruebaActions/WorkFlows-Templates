@@ -98,9 +98,20 @@ jobs:
       - name: Build and Publish ClickOnce
         shell: pwsh
         run: |
+
+          $vsPath = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
+          if (-not (Test-Path $vsPath)) {
+            Write-Error "VsDevCmd.bat not found. Ensure full Visual Studio is installed with ClickOnce Publishing Tools."
+            exit 1
+          }
+          Write-Host "✅ Loading Visual Studio environment..."
+          & cmd /c "`"$vsPath`" && set" | Out-File vs_env.txt
+          Write-Host "Environment loaded. Launching MSBuild with IDE context..."
+
           $appVersion = "${{ steps.version.outputs.appVersion }}"
           Write-Host "Building ClickOnce package with version $appVersion"
-          msbuild "${{ inputs.project_path }}" `
+
+          & cmd /c "`"$vsPath`" && msbuild `"`"${{ inputs.project_path }}`"` `
             /t:Publish `
             /p:Configuration=Release `
             /p:Platform="Any CPU" `
