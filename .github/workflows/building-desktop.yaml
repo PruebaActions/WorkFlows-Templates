@@ -225,8 +225,13 @@ jobs:
           $run = if ($parts.Length -ge 4) { $parts[3] } else { "1" }
 
           # Nueva lógica → último bloque combina día + corrida ("201" en lugar de "001")
-          $lastBlock = ("{0}{1:D2}" -f $day, [int]$run)  # ej: "20" + "01" = "2001" → truncamos si excede 3
-          if ($lastBlock.Length -gt 3) { $lastBlock = $lastBlock.Substring(0,3) }
+          $lastBlock = ("{0}{1:D2}" -f $day, [int]$run)  # ej: "20" + "01" = "2001"
+
+          # Si excede 3 dígitos (como "2001"), recortamos desde la izquierda
+          # para conservar los 3 últimos (→ "201")
+          if ($lastBlock.Length -gt 3) {
+              $lastBlock = $lastBlock.Substring($lastBlock.Length - 3)
+          }
 
           $newVersion = "$shortYear.$month.$lastBlock"
           Write-Host "🧩 Nueva versión MSI: $newVersion"
