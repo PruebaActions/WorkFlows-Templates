@@ -13,14 +13,22 @@ runs:
       run: |
         $deployPath = "${{ inputs.deploy_target_path }}"
         $parentDir = Split-Path $deployPath -Parent
-        $backupRoot = Join-Path $parentDir "backups"
+        $backupsBase = Join-Path $parentDir "backups"
+
+        if (!(Test-Path $backupsBase)) {
+          New-Item -ItemType Directory -Path $backupsBase | Out-Null
+        }
+
+        $rawName = Split-Path $deployPath -Leaf
+        $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
+
+        # Carpeta específica del proyecto dentro de /backups
+        $backupRoot = Join-Path $backupsBase "${siteName}_backups"
 
         if (!(Test-Path $backupRoot)) {
           New-Item -ItemType Directory -Path $backupRoot | Out-Null
         }
 
-        $rawName = Split-Path $deployPath -Leaf
-        $siteName = ($rawName -replace "-\d{4}-\d{2}-\d{2}-\d+$", "")
 
         # Obtener la última fecha y hora de modificación del deployment actual
         if (Test-Path $deployPath) {

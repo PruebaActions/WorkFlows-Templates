@@ -2,6 +2,9 @@ name: Build ClickOnce Template
 
 on:
   workflow_call:
+    secrets:
+      CERT_PASSWORD_SALES:
+        required: true
     inputs:
       assemblyVersion:
         type: string
@@ -21,11 +24,53 @@ on:
       appConfigPath:
         type: string
         required: true
+      assemblyInfo_path:
+        type: string
+        required: true
+      dest_appConfig_path:
+        type: string
+        required: true
+      msi_project_path:
+        required: true
+        type: string
+      cert_path:
+        required: true
+        type: string
+      projects_json:
+        required: true
+        type: string
+      runner_tag:
+        required: true
+        type: string
+      skip_items_json:
+        description: "JSON array of files/folders to skip during msdeploy"
+        required: false
+        default: "[]"
+        type: string
 
 jobs:
+  sql_checkout:
+    name: "Checkout SQL branch and list files"
+    runs-on:
+      group: Code-runners
+    steps:
+      - name: Checkout Sql branch
+        uses: actions/checkout@v4
+        with:
+          ref: Sql
+
+      - name: List files in Sql branch
+        shell: bash
+        run: |
+          echo "Listing files in Sql branch..."
+          ls -R .
+          
   build_clickonce:
     name: "Modify Files & Build ClickOnce"
-    runs-on: [self-hosted, windows, x64, laptop]
+    runs-on:
+        group: Code-runners
+    env:
+      CERT_PASSWORD_SALES: ${{ secrets.CERT_PASSWORD_SALES }}
     # needs: sql_scripts_execution
     # if: ${{ needs.sql_scripts_execution.outputs.success == 'true' }}
 
@@ -37,29 +82,40 @@ jobs:
 
       - name: Generate dynamic version
         id: version
-        shell: pwsh
+        shell: powershell
         run: |
           $today = Get-Date -Format "yyyy.MM.dd"
-          $baseVersion = $today
           $runCounterFile = "$env:GITHUB_WORKSPACE/.run-counter"
 
           if (Test-Path $runCounterFile) {
-            $lastRun = Get-Content $runCounterFile | Select-Object -Last 1
-            $runNumber = [int]$lastRun + 1
+          $lastLine = Get-Content $runCounterFile | Select-Object -Last 1
+          $parts = $lastLine -split '\.'
+          $lastDate = ($parts[0..2] -join '.')
+          $lastRun = [int]$parts[3]
+
+          if ($lastDate -eq $today) {
+            $runNumber = $lastRun + 1
           } else {
             $runNumber = 1
           }
+          } else {
+          $runNumber = 1
+          }
 
-          $version = "$baseVersion.$runNumber"
+          $version = "$today.$runNumber"
           Write-Host "Generated version: $version"
-          $version | Out-File -FilePath $runCounterFile
+
+          # Sobrescribe el archivo con la última versión generada
+          $version | Out-File -FilePath $runCounterFile -Encoding UTF8
+
+          # Exporta la variable al pipeline
           echo "appVersion=$version" >> $env:GITHUB_OUTPUT
 
       - name: Replace App.config
-        shell: pwsh
+        shell: powershell
         run: |
           $source = "${{ inputs.appConfigPath }}"
-          $destination = "AFIFSALESSYSTEM/App.config"
+          $destination = "${{ inputs.dest_appConfig_path }}"
 
           if (Test-Path $source) {
             Write-Host "Replacing App.config with $source"
@@ -70,9 +126,9 @@ jobs:
           }
 
       - name: Update AssemblyInfo version
-        shell: pwsh
+        shell: powershell
         run: |
-          $assemblyInfo = "AFIFSALESSYSTEM/Properties/AssemblyInfo.cs"
+          $assemblyInfo = "${{ inputs.assemblyInfo_path }}"
           $assemblyVersion = "${{ inputs.assemblyVersion }}"
           $appVersion = "${{ steps.version.outputs.appVersion }}"
           Write-Host "Updating AssemblyVersion to $assemblyVersion"
@@ -85,7 +141,7 @@ jobs:
             } | Set-Content $assemblyInfo
 
       - name: Validate publish directory
-        shell: pwsh
+        shell: powershell
         run: |
           if (-not (Test-Path "${{ inputs.publishDir }}")) {
             Write-Host "Creating publish directory..."
@@ -96,205 +152,162 @@ jobs:
         run: nuget restore "${{ inputs.sln_path }}"
 
       - name: Build and Publish ClickOnce
-        shell: pwsh
+        shell: powershell
         run: |
-          $appVersion = "${{ steps.version.outputs.appVersion }}"
+          $certPath = Resolve-Path '${{ inputs.cert_path }}'
+          #$certPasswordPlain = "${{ secrets.CERT_PASSWORD_SALES }}"
+          #$securePassword = ConvertTo-SecureString $certPasswordPlain -AsPlainText -Force
+          $appVersion = '${{ steps.version.outputs.appVersion }}'
+
+          # Write-Host "Importing certificate from $certPath..."
+          # $importedCert = Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+          # if (-not $importedCert) {
+          #   Write-Error "Certificate import failed."
+          #   exit 1
+          # }
+
+          # $thumbprint = $importedCert.Thumbprint
+          # $subject = $importedCert.Subject
+          # Write-Host "Imported certificate: $subject"
+          # Write-Host "Thumbprint: $thumbprint"
+
+          Start-Sleep -Seconds 5
+
           Write-Host "Building ClickOnce package with version $appVersion"
-          msbuild "${{ inputs.project_path }}" `
+
+          msbuild '${{ inputs.project_path }}' `
             /t:Publish `
-            /p:Configuration=Release `
-            /p:Platform="Any CPU" `
-            /p:PublishDir="${{ inputs.publishDir }}" `
-            /p:InstallUrl="${{ inputs.installUrl }}" `
+            /p:Configuration='Release' `
+            /p:Platform='Any CPU' `
+            /p:PublishDir='${{ inputs.publishDir }}' `
+            /p:InstallUrl='${{ inputs.installUrl }}' `
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
-            /p:CreateWebPageOnPublish=true `
-            /p:WebPageFileName=publish.htm `
-            /p:OutputPath="bin\Release" `
-            /v:detailed
+            /p:OutputPath='bin\Release' `
+            # /p:SignManifests=true `
+            # /p:ManifestKeyFile= `
+            # /p:ManifestKeyPassword= `
+            # /p:ManifestCertificateStoreName="My" `
+            # /p:ManifestCertificateSubjectName="$subject" `
+            # /p:ManifestCertificateThumbprint="$thumbprint" `
+            /v:minimal
 
-      - name: Verify publish output
-        shell: pwsh
+      - name: Build MSI Installer
+        shell: powershell
         run: |
-          Write-Host "Published files:"
-          Get-ChildItem "${{ inputs.publishDir }}" -Recurse | 
-            Where-Object { $_.Extension -in '.application', '.htm', '.exe' } |
-            Select-Object FullName
+          # Ruta absoluta al devenv.com (necesario para buildear .vdproj)
+          $devenv = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com"
+
+          if (-not (Test-Path $devenv)) {
+            Write-Error "Visual Studio 2022 Community con Installer Projects no está instalado."
+            exit 1
+          }
+
+          # Rutas
+          $slnPath = (Resolve-Path "${{ inputs.sln_path }}").Path
+          $msiPath = (Resolve-Path "${{ inputs.msi_project_path }}").Path
+          $outputDir = "C:\test\msi"
+
+          Write-Host "Building MSI from $projectPath"
+          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+
+          # Ejecutar build del proyecto MSI
+          & "$devenv" "$slnPath" /Build "Release" /Project $msiPath /Out "$outputDir\msi_build.log"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "MSI build failed. Check the log at $outputDir\msi_build.log"
+            exit 1
+          }
+
+          Write-Host "MSI successfully built. Contents:"
+          Get-ChildItem -Path $outputDir -Filter *.msi -Recurse | Select-Object FullName
             
-      - name: Generate custom publish.htm
-        shell: pwsh
+      - name: Upload ClickOnce artifact
+        uses: actions/upload-artifact@v3
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: ClickOnce-Package
+          path: |
+            ${{ inputs.publishDir }}/**
+          if-no-files-found: error
+
+      
+      - name: Navegando MSI installer path
+        shell: powershell
+        id: find_msi
         run: |
-          $projectPath = "${{ inputs.project_path }}"
-          $publishDir = "${{ inputs.publishDir }}"
-          $version = "${{ steps.version.outputs.appVersion }}"
+          # Derivar carpeta base del proyecto MSI
+          $msiProjectPath = "${{ inputs.msi_project_path }}"
+          $msiDir = Split-Path $msiProjectPath -Parent
+          $releaseDir = Join-Path $msiDir "Release"
 
-          # Read metadata
-          [xml]$proj = Get-Content $projectPath
-          $name = $proj.Project.PropertyGroup.Product
-          if (-not $name) { $name = $proj.Project.PropertyGroup.AssemblyTitle }
-          $publisher = $proj.Project.PropertyGroup.Company
-          if (-not $publisher) { $publisher = "Gbs International Inc" }
+          Write-Host "Searching for MSI files in: $releaseDir"
 
-          Write-Host "📦 Name: $name"
-          Write-Host "🏢 Publisher: $publisher"
-          Write-Host "🧩 Version: $version"
-
-          # Ensure publish directory exists
-          if (-not (Test-Path $publishDir)) {
-            New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
+          if (-not (Test-Path $releaseDir)) {
+            Write-Error "Release directory not found: $releaseDir"
+            exit 1
           }
 
-          # Literal HTML content — DO NOT TOUCH
-          $html = @"
-          <HTML>
-            <HEAD>
-              <TITLE>$name</TITLE>
-              <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=utf-8" />
-              <STYLE TYPE="text/css">
-          <!--
-          BODY{margin-top:20px; margin-left:20px; margin-right:20px; color:#000000; font-family:Tahoma; background-color:white}
-          A:link {font-weight:normal; color:#000066; text-decoration:none}
-          A:visited {font-weight:normal; color:#000066; text-decoration:none}
-          A:active {font-weight:normal; text-decoration:none}
-          A:hover {font-weight:normal; color:#FF6600; text-decoration:none}
-          P {margin-top:0px; margin-bottom:12px; color:#000000; font-family:Tahoma}
-          PRE {border-right:#f0f0e0 1px solid; padding-right:5px; border-top:#f0f0e0 1px solid; margin-top:-5px; padding-left:5px; font-size:x-small; padding-bottom:5px; border-left:#f0f0e0 1px solid; padding-top:5px; border-bottom:#f0f0e0 1px solid; font-family:Courier New; background-color:#e5e5cc}
-          TD {font-size:12px; color:#000000; font-family:Tahoma}
-          H2 {border-top: #003366 1px solid; margin-top:25px; font-weight:bold; font-size:1.5em; margin-bottom:10px; margin-left:-15px; color:#003366}
-          H3 {margin-top:10px; font-size: 1.1em; margin-bottom: 10px; margin-left: -15px; color: #000000}
-          UL {margin-top:10px; margin-left:20px}
-          OL {margin-top:10px; margin-left:20px}
-          LI {margin-top:10px; color: #000000}
-          FONT.value {font-weight:bold; color:darkblue}
-          FONT.key {font-weight: bold; color: darkgreen}
-          .divTag {border:1px; border-style:solid; background-color:#FFFFFF; text-decoration:none; height:auto; width:auto; background-color:#cecece}
-          .BannerColumn {background-color:#000000}
-          .Banner {border:0; padding:0; height:8px; margin-top:0px; color:#ffffff; filter:progid:DXImageTransform.Microsoft.Gradient(GradientType=1,StartColorStr='#1c5280',EndColorStr='#FFFFFF');}
-          .BannerTextCompany {font:bold; font-size:18pt; color:#cecece; font-family:Tahoma; height:0px; margin-top:0; margin-left:8px; margin-bottom:0; padding:0px; white-space:nowrap; filter:progid:DXImageTransform.Microsoft.dropshadow(OffX=2,OffY=2,Color='black',Positive='true');}
-          .BannerTextApplication {font:bold; font-size:18pt; font-family:Tahoma; height:0px; margin-top:0; margin-left:8px; margin-bottom:0; padding:0px; white-space:nowrap; filter:progid:DXImageTransform.Microsoft.dropshadow(OffX=2,OffY=2,Color='black',Positive='true');}
-          .BannerText {font:bold; font-size:18pt; font-family:Tahoma; height:0px; margin-top:0; margin-left:8px; margin-bottom:0; padding:0px; filter:progid:DXImageTransform.Microsoft.dropshadow(OffX=2,OffY=2,Color='black',Positive='true');}
-          .BannerSubhead {border:0; padding:0; height:16px; margin-top:0px; margin-left:10px; color:#ffffff; filter:progid:DXImageTransform.Microsoft.Gradient(GradientType=1,StartColorStr='#4B3E1A',EndColorStr='#FFFFFF');}
-          .BannerSubheadText {font:bold; height:11px; font-size:11px; font-family:Tahoma; margin-top:1; margin-left:10; filter:progid:DXImageTransform.Microsoft.dropshadow(OffX=2,OffY=2,Color='black',Positive='true');}
-          .FooterRule {border:0; padding:0; height:1px; margin:0px; color:#ffffff; filter:progid:DXImageTransform.Microsoft.Gradient(GradientType=1,StartColorStr='#4B3E1A',EndColorStr='#FFFFFF');}
-          .FooterText {font-size:11px; font-weight:normal; text-decoration:none; font-family:Tahoma; margin-top:10; margin-left:0px; margin-bottom:2; padding:0px; color:#999999; white-space:nowrap}
-          .FooterText A:link {font-weight:normal; color:#999999; text-decoration:underline}
-          .FooterText A:visited {font-weight:normal; color:#999999; text-decoration:underline}
-          .FooterText A:active {font-weight:normal; color:#999999; text-decoration:underline}
-          .FooterText A:hover {font-weight:normal; color:#FF6600; text-decoration:underline}
-          .ClickOnceInfoText {font-size:11px; font-weight:normal; text-decoration:none; font-family:Tahoma; margin-top:0; margin-right:2px; margin-bottom:0; padding:0px; color:#000000}
-          .InstallTextStyle {font:bold; font-size:14pt; font-family:Tahoma; a:#FF0000; text-decoration:None}
-          .DetailsStyle {margin-left:30px}
-          .ItemStyle {margin-left:-15px; font-weight:bold}
-          .StartColorStr {background-color:#4B3E1A}
-          .JustThisApp A:link {font-weight:normal; color:#000066; text-decoration:underline}
-          .JustThisApp A:visited {font-weight:normal; color:#000066; text-decoration:underline}
-          .JustThisApp A:active {font-weight:normal; text-decoration:underline}
-          .JustThisApp A:hover {font-weight:normal; color:#FF6600; text-decoration:underline}
-          -->
-
-          </STYLE>
-
-          <SCRIPT LANGUAGE="JavaScript">
-          <!--
-          runtimeVersion = "4.7.2";
-          checkClient = false;
-          directLink = "AFIFSALESSYSTEM.application";
-          function Initialize()
-          {
-            if (HasRuntimeVersion(runtimeVersion, false) || (checkClient && HasRuntimeVersion(runtimeVersion, checkClient)))
-            {
-              InstallButton.href = directLink;
-              BootstrapperSection.style.display = "none";
-            }
+          $msiFiles = Get-ChildItem -Path $releaseDir -Filter *.msi -Recurse
+          if (-not $msiFiles) {
+            Write-Error "No MSI files found in $releaseDir"
+            exit 1
           }
-          function HasRuntimeVersion(v, c)
-          {
-            var va = GetVersion(v);
-            var i;
-            var a = navigator.userAgent.match(/\.NET CLR [0-9.]+/g);
-            if(va[0]==4)
-              a = navigator.userAgent.match(/\.NET[0-9.]+E/g);
-            if (c)
-            {
-              a = navigator.userAgent.match(/\.NET Client [0-9.]+/g);
-              if (va[0]==4)
-                a = navigator.userAgent.match(/\.NET[0-9.]+C/g);
-            }
-            if (a != null)
-              for (i = 0; i < a.length; ++i)
-                if (CompareVersions(va, GetVersion(a[i])) <= 0)
-                                          return true;
-            return false;
-          }
-          function GetVersion(v)
-          {
-            var a = v.match(/([0-9]+)\.([0-9]+)\.([0-9]+)/i);
-            if(a==null)
-              a = v.match(/([0-9]+)\.([0-9]+)/i);
-            return a.slice(1);
-          }
-          function CompareVersions(v1, v2)
-          {
-            if(v1.length>v2.length)
-            {
-                v2[v2.length]=0;
-            }  
-            else if(v1.length<v2.length)
-            {
-                v1[v1.length]=0;
-            }
 
-            for (i = 0; i < v1.length; ++i)
-            {
-              var n1 = new Number(v1[i]);
-              var n2 = new Number(v2[i]);
-              if (n1 < n2)
-                return -1;
-              if (n1 > n2)
-                return 1;
-            }
-            return 0;
-          }
-          -->
-          </SCRIPT>
+          Write-Host "Found the following MSI files:"
+          $msiFiles | ForEach-Object { Write-Host " - $($_.FullName)" }
 
-          </HEAD>
-            <BODY ONLOAD="Initialize()">
-              <TABLE WIDTH="100%" CELLPADDING="0" CELLSPACING="2" BORDER="0">
-          <!-- Begin Banner -->
-          <TR><TD><TABLE CELLPADDING="2" CELLSPACING="0" BORDER="0" BGCOLOR="#cecece" WIDTH="100%"><TR><TD><TABLE BGCOLOR="#1c5280" WIDTH="100%" CELLPADDING="0" CELLSPACING="0" BORDER="0"><TR><TD CLASS="Banner" /></TR><TR><TD CLASS="Banner"><SPAN CLASS="BannerTextCompany">$publisher</SPAN></TD></TR><TR><TD CLASS="Banner"><SPAN CLASS="BannerTextApplication">$name</SPAN></TD></TR><TR><TD CLASS="Banner" ALIGN="RIGHT" /></TR></TABLE></TD></TR></TABLE></TD></TR>
-          <!-- End Banner -->
-          <!-- Begin Dialog -->
-          <TR><TD ALIGN="LEFT"><TABLE CELLPADDING="2" CELLSPACING="0" BORDER="0" WIDTH="540"><TR><TD WIDTH="496">
-          <!-- Begin AppInfo -->
-          <TABLE><TR><TD COLSPAN="3">&nbsp;</TD></TR><TR><TD><B>Name:</B></TD><TD WIDTH="5"><SPACER TYPE="block" WIDTH="10" /></TD><TD>$name</TD></TR><TR><TD COLSPAN="3">&nbsp;</TD></TR><TR><TD><B>Version:</B></TD><TD WIDTH="5"><SPACER TYPE="block" WIDTH="10" /></TD><TD>$version</TD></TR><TR><TD COLSPAN="3">&nbsp;</TD></TR><TR><TD><B>Publisher:</B></TD><TD WIDTH="5"><SPACER TYPE="block" WIDTH="10" /></TD><TD>$publisher</TD></TR><tr><td colspan="3">&nbsp;</td></tr></TABLE>
-          <!-- End AppInfo -->
-          <!-- Begin Prerequisites -->
-          <TABLE ID="BootstrapperSection" BORDER="0"><TR><TD COLSPAN="2">The following prerequisites are required:</TD></TR><TR><TD WIDTH="10">&nbsp;</TD><TD><UL>
-          <LI>Microsoft .NET Framework 4.5.2 (x86 and x64)</LI>
-          </UL></TD></TR><TR><TD COLSPAN="2">
-          If these components are already installed, you can <SPAN CLASS="JustThisApp"><A HREF="AFIFSALESSYSTEM.application">launch</A></SPAN> the application now. Otherwise, click the button below to install the prerequisites and run the application.
-          </TD></TR><TR><TD COLSPAN="2">&nbsp;</TD></TR></TABLE>
-          <!-- End Prerequisites -->
-          </TD></TR></TABLE>
-          <!-- Begin Buttons -->
-          <TR><TD ALIGN="LEFT"><TABLE CELLPADDING="2" CELLSPACING="0" BORDER="0" WIDTH="540" STYLE="cursor:hand" ONCLICK="window.navigate(InstallButton.href)"><TR><TD ALIGN="LEFT"><TABLE CELLPADDING="1" BGCOLOR="#333333" CELLSPACING="0" BORDER="0"><TR><TD><TABLE CELLPADDING="1" BGCOLOR="#cecece" CELLSPACING="0" BORDER="0"><TR><TD><TABLE CELLPADDING="1" BGCOLOR="#efefef" CELLSPACING="0" BORDER="0"><TR><TD WIDTH="20"><SPACER TYPE="block" WIDTH="20" HEIGHT="1" /></TD><TD><A ID="InstallButton" HREF="setup.exe">Install</A></TD><TD width="20"><SPACER TYPE="block" WIDTH="20" HEIGHT="1" /></TD></TR></TABLE></TD></TR></TABLE></TD></TR></TABLE></TD><TD WIDTH="15%" ALIGN="right" /></TR></TABLE></TD></TR>
-          <!-- End Buttons -->
-          </TD></TR>
-          <!-- End Dialog -->
-          <!-- Spacer Row -->
-          <TR><TD>&nbsp;</TD></TR>
-          <TR><TD>
-          <!-- Begin Footer -->
-          <TABLE WIDTH="100%" CELLPADDING="0" CELLSPACING="0" BORDER="0" BGCOLOR="#ffffff"><TR><TD HEIGHT="5"><SPACER TYPE="block" HEIGHT="5" /></TD></TR><TR><TD CLASS="FooterText" ALIGN="center"><A HREF="https://go.microsoft.com/fwlink/?LinkId=154571">ClickOnce and .NET Framework Resources</A>
-          </TD></TR><TR><TD HEIGHT="5"><SPACER TYPE="block" HEIGHT="5" /></TD></TR><TR><TD HEIGHT="1" bgcolor="#cecece"><SPACER TYPE="block" HEIGHT="1" /></TD></TR></TABLE>
-          <!-- End Footer -->
-          </TD></TR>
-          </TABLE>
-            <script type="text/javascript" src="/_Incapsula_Resource?SWJIYLWA=719d34d31c8e3a6e6fffd425f7e032f3&ns=1&cb=1998844227" async></script></BODY>
-          </HTML>
-          "@
+          echo "releaseDir=$releaseDir" >> $env:GITHUB_OUTPUT
 
-          $outputFile = Join-Path $publishDir "publish.htm"
-          $html | Out-File -FilePath $outputFile -Encoding UTF8 -Force
-          Write-Host "✅ Custom publish.htm generated at: $outputFile"
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v3
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: MSI-Installer
+          path: |
+            ${{ steps.find_msi.outputs.releaseDir }}/*.msi
+          if-no-files-found: error
+
+  backup_installers:
+    name: "🗂️ Backup Installers"
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    needs: build_clickonce
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1
+    steps:
+      - name: "Prepare Backup Folder"
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@Production
+        with:
+          deploy_target_path: ${{ matrix.deploy_target_path }}
+
+  deploy_installers:
+    name: "🚀 Deploy Installers"
+    needs: backup_installers
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Downloading artifacts"
+        uses: actions/download-artifact@v3
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: ${{ matrix.artifact_name}}
+          path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name}}
+
+      - name: "Deploy to IIS"
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@Production
+        with:
+          project_name: ${{ matrix.project_name }}
+          publish_path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name }}
+          destination_path: ${{ matrix.deploy_target_path }}
+          skip_items_json: ${{ inputs.skip_items_json }}
+
+      
