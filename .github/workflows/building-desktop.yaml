@@ -212,7 +212,7 @@ jobs:
 
           Write-Host "🔍 Actualizando versión del MSI usando: $fullVersion"
 
-          # Extraer partes de la versión
+          # Extraer partes de la versión completa (YYYY.MM.DD.RUN)
           $parts = $fullVersion -split '\.'
           if ($parts.Length -lt 3) {
             Write-Error "⚠️ Formato de versión inesperado: $fullVersion"
@@ -221,19 +221,21 @@ jobs:
 
           $shortYear = $parts[0][-2..-1] -join ''   # "25"
           $month = $parts[1].PadLeft(2, '0')        # "11"
-          $day = $parts[2].PadLeft(2, '0')          # "20"
-          $run = if ($parts.Length -ge 4) { $parts[3] } else { "1" }
 
-          # Nueva lógica → último bloque combina día + corrida ("201" en lugar de "001")
-          $lastBlock = ("{0}{1:D2}" -f $day, [int]$run)  # ej: "20" + "01" = "2001"
+          $dayInt = [int]$parts[2]                  # Día (ej: 20)
+          $runInt = if ($parts.Length -ge 4) { [int]$parts[3] } else { 1 }
 
-          # Si excede 3 dígitos (como "2001"), recortamos desde la izquierda
-          # para conservar los 3 últimos (→ "201")
-          if ($lastBlock.Length -gt 3) {
-              $lastBlock = $lastBlock.Substring($lastBlock.Length - 3)
+          # Cálculo del bloque final (día * 10 + corrida)
+          # Ejemplo: día=20, corrida=1 → 201
+          $numericLastBlock = ($dayInt * 10) + $runInt
+          if ($numericLastBlock -gt 999) {
+            Write-Error "🚨 El bloque final del ProductVersion excede el límite (999). Valor: $numericLastBlock"
+            exit 1
           }
 
+          $lastBlock = "{0:D3}" -f $numericLastBlock
           $newVersion = "$shortYear.$month.$lastBlock"
+
           Write-Host "🧩 Nueva versión MSI: $newVersion"
 
           # Generar nuevos GUIDs
