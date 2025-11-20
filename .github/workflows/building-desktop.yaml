@@ -212,7 +212,7 @@ jobs:
 
           Write-Host "🔍 Actualizando versión del MSI usando: $fullVersion"
 
-          # Extraer partes y convertir a formato corto (25.11.020)
+          # Extraer partes de la versión
           $parts = $fullVersion -split '\.'
           if ($parts.Length -lt 3) {
             Write-Error "⚠️ Formato de versión inesperado: $fullVersion"
@@ -222,9 +222,13 @@ jobs:
           $shortYear = $parts[0][-2..-1] -join ''   # "25"
           $month = $parts[1].PadLeft(2, '0')        # "11"
           $day = $parts[2].PadLeft(2, '0')          # "20"
-          $run = if ($parts.Length -ge 4) { $parts[3].PadLeft(3, '0') } else { "000" }
+          $run = if ($parts.Length -ge 4) { $parts[3] } else { "1" }
 
-          $newVersion = "$shortYear.$month.$run"
+          # Nueva lógica → último bloque combina día + corrida ("201" en lugar de "001")
+          $lastBlock = ("{0}{1:D2}" -f $day, [int]$run)  # ej: "20" + "01" = "2001" → truncamos si excede 3
+          if ($lastBlock.Length -gt 3) { $lastBlock = $lastBlock.Substring(0,3) }
+
+          $newVersion = "$shortYear.$month.$lastBlock"
           Write-Host "🧩 Nueva versión MSI: $newVersion"
 
           # Generar nuevos GUIDs
@@ -234,17 +238,13 @@ jobs:
           Write-Host "🆕 ProductCode: {$newProductCode}"
           Write-Host "🆕 PackageCode: {$newPackageCode}"
 
-          # Leer el archivo y actualizar campos
+          # Leer y reemplazar en el archivo .vdproj
           $content = Get-Content $vdprojPath -Raw
 
-          # Reemplazar ProductVersion
           $content = $content -replace '"ProductVersion" = "8:[^"]+"', "`"ProductVersion`" = `"8:$newVersion`""
-
-          # Reemplazar ProductCode y PackageCode (manteniendo UpgradeCode intacto)
           $content = $content -replace '"ProductCode" = "8:{[^}]+}"', "`"ProductCode`" = `"8:{$newProductCode}`""
           $content = $content -replace '"PackageCode" = "8:{[^}]+}"', "`"PackageCode`" = `"8:{$newPackageCode}`""
 
-          # Guardar los cambios
           $content | Set-Content $vdprojPath -Encoding UTF8
 
           Write-Host "✅ Archivo .vdproj actualizado correctamente"
