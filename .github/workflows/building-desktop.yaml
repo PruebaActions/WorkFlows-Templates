@@ -52,7 +52,7 @@ jobs:
   sql_checkout:
     name: "Checkout SQL branch and list files"
     runs-on:
-      group: Code-runners
+      group: DAST
     steps:
       - name: Checkout Sql branch
         uses: actions/checkout@v4
@@ -68,7 +68,7 @@ jobs:
   build_clickonce:
     name: "Modify Files & Build ClickOnce"
     runs-on:
-        group: Code-runners
+        group: DAST
     env:
       CERT_PASSWORD_SALES: ${{ secrets.CERT_PASSWORD_SALES }}
     # needs: sql_scripts_execution
