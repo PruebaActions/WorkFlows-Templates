@@ -4,43 +4,43 @@ on:
   workflow_call:
     secrets:
       CERT_PASSWORD_SALES:
-        required: true
+        required: false
     inputs:
       assemblyVersion:
         type: string
-        required: true
+        required: false
       publishDir:
         type: string
-        required: true
+        required: false
       installUrl:
         type: string
-        required: true
+        required: false
       project_path:
         type: string
-        required: true
+        required: false
       sln_path:
         type: string
-        required: true
+        required: false
       appConfigPath:
         type: string
-        required: true
+        required: false
       assemblyInfo_path:
         type: string
-        required: true
+        required: false
       dest_appConfig_path:
         type: string
-        required: true
+        required: false
       msi_project_path:
-        required: true
+        required: false
         type: string
       cert_path:
-        required: true
+        required: false
         type: string
       projects_json:
-        required: true
+        required: false
         type: string
       runner_tag:
-        required: true
+        required: false
         type: string
       skip_items_json:
         description: "JSON array of files/folders to skip during msdeploy"
@@ -49,21 +49,21 @@ on:
         type: string
 
 jobs:
-  sql_checkout:
-    name: "Checkout SQL branch and list files"
-    runs-on:
-      group: DAST
-    steps:
-      - name: Checkout Sql branch
-        uses: actions/checkout@v4
-        with:
-          ref: Sql
+  # sql_scripts_execution:
+  #   name: "Checkout SQL branch and list files"
+  #   runs-on:
+  #     group: DAST
+  #   steps:
+  #     - name: Checkout Sql branch
+  #       uses: actions/checkout@v4
+  #       with:
+  #         ref: Sql
 
-      - name: List files in Sql branch
-        shell: bash
-        run: |
-          echo "Listing files in Sql branch..."
-          ls -R .
+  #     - name: List files in Sql branch
+  #       shell: bash
+  #       run: |
+  #         echo "Listing files in Sql branch..."
+  #         ls -R .
           
   build_clickonce:
     name: "Modify Files & Build ClickOnce"
