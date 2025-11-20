@@ -280,7 +280,7 @@ jobs:
       max-parallel: 1
     steps:
       - name: "Prepare Backup Folder"
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@Production
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@main
         with:
           deploy_target_path: ${{ matrix.deploy_target_path }}
 
@@ -304,7 +304,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name}}
 
       - name: "Deploy to IIS"
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@Production
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
         with:
           project_name: ${{ matrix.project_name }}
           publish_path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name }}
