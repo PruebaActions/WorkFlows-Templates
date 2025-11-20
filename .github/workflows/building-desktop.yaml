@@ -199,122 +199,175 @@ jobs:
             # /p:ManifestCertificateThumbprint="$thumbprint" `
             
 
-      - name: Build MSI Installer
-        shell: powershell
+      - name: Update MSI Version and GUIDs
+        shell: pwsh
         run: |
-          # Ruta absoluta al devenv.com (necesario para buildear .vdproj)
-          $devenv = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com"
+          $vdprojPath = '${{ matrix.msi_project_path }}'
+          $fullVersion = '${{ steps.version.outputs.appVersion }}'
 
-          if (-not (Test-Path $devenv)) {
-            Write-Error "Visual Studio 2022 Community con Installer Projects no está instalado."
+          if (-not (Test-Path $vdprojPath)) {
+            Write-Error "❌ No se encontró el archivo .vdproj en la ruta $vdprojPath"
             exit 1
           }
 
-          # Rutas
-          $slnPath = (Resolve-Path "${{ matrix.sln_path }}").Path
-          $msiPath = (Resolve-Path "${{ matrix.msi_project_path }}").Path
-          $outputDir = "C:\test\msi"
+          Write-Host "🔍 Actualizando versión del MSI usando: $fullVersion"
 
-          Write-Host "Building MSI from $projectPath"
-          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
-
-          # Ejecutar build del proyecto MSI
-          & "$devenv" "$slnPath" /Build "Release" /Project $msiPath
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "MSI build failed."
+          # Extraer partes y convertir a formato corto (25.11.020)
+          $parts = $fullVersion -split '\.'
+          if ($parts.Length -lt 3) {
+            Write-Error "⚠️ Formato de versión inesperado: $fullVersion"
             exit 1
           }
 
-          Write-Host "MSI successfully built. Contents:"
-          Get-ChildItem -Path $outputDir -Filter *.msi -Recurse | Select-Object FullName
+          $shortYear = $parts[0][-2..-1] -join ''   # "25"
+          $month = $parts[1].PadLeft(2, '0')        # "11"
+          $day = $parts[2].PadLeft(2, '0')          # "20"
+          $run = if ($parts.Length -ge 4) { $parts[3].PadLeft(3, '0') } else { "000" }
+
+          $newVersion = "$shortYear.$month.$run"
+          Write-Host "🧩 Nueva versión MSI: $newVersion"
+
+          # Generar nuevos GUIDs
+          $newProductCode = [guid]::NewGuid().ToString().ToUpper()
+          $newPackageCode = [guid]::NewGuid().ToString().ToUpper()
+
+          Write-Host "🆕 ProductCode: {$newProductCode}"
+          Write-Host "🆕 PackageCode: {$newPackageCode}"
+
+          # Leer el archivo y actualizar campos
+          $content = Get-Content $vdprojPath -Raw
+
+          # Reemplazar ProductVersion
+          $content = $content -replace '"ProductVersion" = "8:[^"]+"', "`"ProductVersion`" = `"8:$newVersion`""
+
+          # Reemplazar ProductCode y PackageCode (manteniendo UpgradeCode intacto)
+          $content = $content -replace '"ProductCode" = "8:{[^}]+}"', "`"ProductCode`" = `"8:{$newProductCode}`""
+          $content = $content -replace '"PackageCode" = "8:{[^}]+}"', "`"PackageCode`" = `"8:{$newPackageCode}`""
+
+          # Guardar los cambios
+          $content | Set-Content $vdprojPath -Encoding UTF8
+
+          Write-Host "✅ Archivo .vdproj actualizado correctamente"
+          Write-Host "📦 ProductVersion: $newVersion"
+          Write-Host "🧱 ProductCode y PackageCode regenerados"
+
+
+  #     - name: Build MSI Installer
+  #       shell: powershell
+  #       run: |
+  #         # Ruta absoluta al devenv.com (necesario para buildear .vdproj)
+  #         $devenv = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com"
+
+  #         if (-not (Test-Path $devenv)) {
+  #           Write-Error "Visual Studio 2022 Community con Installer Projects no está instalado."
+  #           exit 1
+  #         }
+
+  #         # Rutas
+  #         $slnPath = (Resolve-Path "${{ matrix.sln_path }}").Path
+  #         $msiPath = (Resolve-Path "${{ matrix.msi_project_path }}").Path
+  #         $outputDir = "C:\test\msi"
+
+  #         Write-Host "Building MSI from $projectPath"
+  #         New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+
+  #         # Ejecutar build del proyecto MSI
+  #         & "$devenv" "$slnPath" /Build "Release" /Project $msiPath
+
+  #         if ($LASTEXITCODE -ne 0) {
+  #           Write-Error "MSI build failed."
+  #           exit 1
+  #         }
+
+  #         Write-Host "MSI successfully built. Contents:"
+  #         Get-ChildItem -Path $outputDir -Filter *.msi -Recurse | Select-Object FullName
             
-      - name: Upload ClickOnce artifact
-        uses: actions/upload-artifact@v4
-        env:
-          NODE_TLS_REJECT_UNAUTHORIZED: '0'
-        with:
-          name: ClickOnce-Package
-          path: |
-            ${{ matrix.publishDir }}/**
-          if-no-files-found: error
+  #     - name: Upload ClickOnce artifact
+  #       uses: actions/upload-artifact@v4
+  #       env:
+  #         NODE_TLS_REJECT_UNAUTHORIZED: '0'
+  #       with:
+  #         name: ClickOnce-Package
+  #         path: |
+  #           ${{ matrix.publishDir }}/**
+  #         if-no-files-found: error
 
       
-      - name: Navegando MSI installer path
-        shell: powershell
-        id: find_msi
-        run: |
-          # Derivar carpeta base del proyecto MSI
-          $msiProjectPath = "${{ matrix.msi_project_path }}"
-          $msiDir = Split-Path $msiProjectPath -Parent
-          $releaseDir = Join-Path $msiDir "Release"
+  #     - name: Navegando MSI installer path
+  #       shell: powershell
+  #       id: find_msi
+  #       run: |
+  #         # Derivar carpeta base del proyecto MSI
+  #         $msiProjectPath = "${{ matrix.msi_project_path }}"
+  #         $msiDir = Split-Path $msiProjectPath -Parent
+  #         $releaseDir = Join-Path $msiDir "Release"
 
-          Write-Host "Searching for MSI files in: $releaseDir"
+  #         Write-Host "Searching for MSI files in: $releaseDir"
 
-          if (-not (Test-Path $releaseDir)) {
-            Write-Error "Release directory not found: $releaseDir"
-            exit 1
-          }
+  #         if (-not (Test-Path $releaseDir)) {
+  #           Write-Error "Release directory not found: $releaseDir"
+  #           exit 1
+  #         }
 
-          $msiFiles = Get-ChildItem -Path $releaseDir -Filter *.msi -Recurse
-          if (-not $msiFiles) {
-            Write-Error "No MSI files found in $releaseDir"
-            exit 1
-          }
+  #         $msiFiles = Get-ChildItem -Path $releaseDir -Filter *.msi -Recurse
+  #         if (-not $msiFiles) {
+  #           Write-Error "No MSI files found in $releaseDir"
+  #           exit 1
+  #         }
 
-          Write-Host "Found the following MSI files:"
-          $msiFiles | ForEach-Object { Write-Host " - $($_.FullName)" }
+  #         Write-Host "Found the following MSI files:"
+  #         $msiFiles | ForEach-Object { Write-Host " - $($_.FullName)" }
 
-          echo "releaseDir=$releaseDir" >> $env:GITHUB_OUTPUT
+  #         echo "releaseDir=$releaseDir" >> $env:GITHUB_OUTPUT
 
-      - name: Upload MSI artifact
-        uses: actions/upload-artifact@v4
-        env:
-          NODE_TLS_REJECT_UNAUTHORIZED: '0'
-        with:
-          name: MSI-Installer
-          path: |
-            ${{ steps.find_msi.outputs.releaseDir }}/*.msi
-          if-no-files-found: error
+  #     - name: Upload MSI artifact
+  #       uses: actions/upload-artifact@v4
+  #       env:
+  #         NODE_TLS_REJECT_UNAUTHORIZED: '0'
+  #       with:
+  #         name: MSI-Installer
+  #         path: |
+  #           ${{ steps.find_msi.outputs.releaseDir }}/*.msi
+  #         if-no-files-found: error
 
-  backup_installers:
-    name: "🗂️ Backup Installers"
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    needs: build_clickonce
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - name: "Prepare Backup Folder"
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@main
-        with:
-          deploy_target_path: ${{ matrix.deploy_target_path }}
+  # backup_installers:
+  #   name: "🗂️ Backup Installers"
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   needs: build_clickonce
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
+  #   steps:
+  #     - name: "Prepare Backup Folder"
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@main
+  #       with:
+  #         deploy_target_path: ${{ matrix.deploy_target_path }}
 
-  deploy_installers:
-    name: "🚀 Deploy Installers"
-    needs: backup_installers
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
+  # deploy_installers:
+  #   name: "🚀 Deploy Installers"
+  #   needs: backup_installers
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: "Downloading artifacts"
-        uses: actions/download-artifact@v4
-        env:
-          NODE_TLS_REJECT_UNAUTHORIZED: '0'
-        with:
-          name: ${{ matrix.artifact_name}}
-          path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name}}
+  #     - name: "Downloading artifacts"
+  #       uses: actions/download-artifact@v4
+  #       env:
+  #         NODE_TLS_REJECT_UNAUTHORIZED: '0'
+  #       with:
+  #         name: ${{ matrix.artifact_name}}
+  #         path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name}}
 
-      - name: "Deploy to IIS"
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
-        with:
-          project_name: ${{ matrix.project_name }}
-          publish_path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name }}
-          destination_path: ${{ matrix.deploy_target_path }}
-          skip_items_json: ${{ inputs.skip_items_json }}
+  #     - name: "Deploy to IIS"
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
+  #       with:
+  #         project_name: ${{ matrix.project_name }}
+  #         publish_path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name }}
+  #         destination_path: ${{ matrix.deploy_target_path }}
+  #         skip_items_json: ${{ inputs.skip_items_json }}
 
       
