@@ -6,36 +6,36 @@ on:
       CERT_PASSWORD_SALES:
         required: false
     inputs:
-      assemblyVersion:
-        type: string
-        required: false
-      publishDir:
-        type: string
-        required: false
-      installUrl:
-        type: string
-        required: false
-      project_path:
-        type: string
-        required: false
-      sln_path:
-        type: string
-        required: false
-      appConfigPath:
-        type: string
-        required: false
-      assemblyInfo_path:
-        type: string
-        required: false
-      dest_appConfig_path:
-        type: string
-        required: false
-      msi_project_path:
-        required: false
-        type: string
-      cert_path:
-        required: false
-        type: string
+      # assemblyVersion:
+      #   type: string
+      #   required: false
+      # publishDir:
+      #   type: string
+      #   required: false
+      # installUrl:
+      #   type: string
+      #   required: false
+      # project_path:
+      #   type: string
+      #   required: false
+      # sln_path:
+      #   type: string
+      #   required: false
+      # appConfigPath:
+      #   type: string
+      #   required: false
+      # assemblyInfo_path:
+      #   type: string
+      #   required: false
+      # dest_appConfig_path:
+      #   type: string
+      #   required: false
+      # msi_project_path:
+      #   required: false
+      #   type: string
+      # cert_path:
+      #   required: false
+      #   type: string
       projects_json:
         required: false
         type: string
@@ -46,6 +46,9 @@ on:
         description: "JSON array of files/folders to skip during msdeploy"
         required: false
         default: "[]"
+        type: string
+      project_compile_info_json:
+        required: false
         type: string
 
 jobs:
@@ -69,6 +72,9 @@ jobs:
     name: "Modify Files & Build ClickOnce"
     runs-on:
         group: DAST
+    strategy:
+      matrix: ${{ fromJson(inputs.project_compile_info_json) }}
+      max-parallel: 1
     env:
       CERT_PASSWORD_SALES: ${{ secrets.CERT_PASSWORD_SALES }}
     # needs: sql_scripts_execution
@@ -114,8 +120,8 @@ jobs:
       - name: Replace App.config
         shell: powershell
         run: |
-          $source = "${{ inputs.appConfigPath }}"
-          $destination = "${{ inputs.dest_appConfig_path }}"
+          $source = "${{ matrix.appConfigPath }}"
+          $destination = "${{ matrix.dest_appConfig_path }}"
 
           if (Test-Path $source) {
             Write-Host "Replacing App.config with $source"
@@ -128,8 +134,8 @@ jobs:
       - name: Update AssemblyInfo version
         shell: powershell
         run: |
-          $assemblyInfo = "${{ inputs.assemblyInfo_path }}"
-          $assemblyVersion = "${{ inputs.assemblyVersion }}"
+          $assemblyInfo = "${{ matrix.assemblyInfo_path }}"
+          $assemblyVersion = "${{ matrix.assemblyVersion }}"
           $appVersion = "${{ steps.version.outputs.appVersion }}"
           Write-Host "Updating AssemblyVersion to $assemblyVersion"
           Write-Host "Updating FileVersion to $appVersion"
@@ -143,18 +149,18 @@ jobs:
       - name: Validate publish directory
         shell: powershell
         run: |
-          if (-not (Test-Path "${{ inputs.publishDir }}")) {
+          if (-not (Test-Path "${{ matrix.publishDir }}")) {
             Write-Host "Creating publish directory..."
-            New-Item -ItemType Directory -Force -Path "${{ inputs.publishDir }}"
+            New-Item -ItemType Directory -Force -Path "${{ matrix.publishDir }}"
           }
 
       - name: Restore NuGet packages
-        run: nuget restore "${{ inputs.sln_path }}"
+        run: nuget restore "${{ matrix.sln_path }}"
 
       - name: Build and Publish ClickOnce
         shell: powershell
         run: |
-          #$certPath = Resolve-Path '${{ inputs.cert_path }}'
+          #$certPath = Resolve-Path '${{ matrix.cert_path }}'
           #$certPasswordPlain = "${{ secrets.CERT_PASSWORD_SALES }}"
           #$securePassword = ConvertTo-SecureString $certPasswordPlain -AsPlainText -Force
           $appVersion = '${{ steps.version.outputs.appVersion }}'
@@ -175,12 +181,12 @@ jobs:
 
           Write-Host "Building ClickOnce package with version $appVersion"
 
-          msbuild '${{ inputs.project_path }}' `
+          msbuild '${{ matrix.project_path }}' `
             /t:Publish `
             /p:Configuration='Release' `
             /p:Platform='Any CPU' `
-            /p:PublishDir='${{ inputs.publishDir }}' `
-            /p:InstallUrl='${{ inputs.installUrl }}' `
+            /p:PublishDir='${{ matrix.publishDir }}' `
+            /p:InstallUrl='${{ matrix.installUrl }}' `
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
             /p:OutputPath='bin\Release' `
@@ -205,18 +211,18 @@ jobs:
           }
 
           # Rutas
-          $slnPath = (Resolve-Path "${{ inputs.sln_path }}").Path
-          $msiPath = (Resolve-Path "${{ inputs.msi_project_path }}").Path
+          $slnPath = (Resolve-Path "${{ matrix.sln_path }}").Path
+          $msiPath = (Resolve-Path "${{ matrix.msi_project_path }}").Path
           $outputDir = "C:\test\msi"
 
           Write-Host "Building MSI from $projectPath"
           New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 
           # Ejecutar build del proyecto MSI
-          & "$devenv" "$slnPath" /Build "Release" /Project $msiPath /Out "$outputDir\msi_build.log"
+          & "$devenv" "$slnPath" /Build "Release" /Project $msiPath
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "MSI build failed. Check the log at $outputDir\msi_build.log"
+            Write-Error "MSI build failed."
             exit 1
           }
 
@@ -230,7 +236,7 @@ jobs:
         with:
           name: ClickOnce-Package
           path: |
-            ${{ inputs.publishDir }}/**
+            ${{ matrix.publishDir }}/**
           if-no-files-found: error
 
       
@@ -239,7 +245,7 @@ jobs:
         id: find_msi
         run: |
           # Derivar carpeta base del proyecto MSI
-          $msiProjectPath = "${{ inputs.msi_project_path }}"
+          $msiProjectPath = "${{ matrix.msi_project_path }}"
           $msiDir = Split-Path $msiProjectPath -Parent
           $releaseDir = Join-Path $msiDir "Release"
 
