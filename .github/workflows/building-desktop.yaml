@@ -154,7 +154,7 @@ jobs:
       - name: Build and Publish ClickOnce
         shell: powershell
         run: |
-          $certPath = Resolve-Path '${{ inputs.cert_path }}'
+          #$certPath = Resolve-Path '${{ inputs.cert_path }}'
           #$certPasswordPlain = "${{ secrets.CERT_PASSWORD_SALES }}"
           #$securePassword = ConvertTo-SecureString $certPasswordPlain -AsPlainText -Force
           $appVersion = '${{ steps.version.outputs.appVersion }}'
