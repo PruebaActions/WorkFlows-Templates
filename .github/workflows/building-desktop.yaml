@@ -184,13 +184,14 @@ jobs:
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
             /p:OutputPath='bin\Release' `
+            /v:minimal 
             # /p:SignManifests=true `
             # /p:ManifestKeyFile= `
             # /p:ManifestKeyPassword= `
             # /p:ManifestCertificateStoreName="My" `
             # /p:ManifestCertificateSubjectName="$subject" `
             # /p:ManifestCertificateThumbprint="$thumbprint" `
-            /v:minimal
+            
 
       - name: Build MSI Installer
         shell: powershell
