@@ -136,6 +136,7 @@ jobs:
             /p:Configuration='Release' `
             /p:Platform='Any CPU' `
             /p:OutputPath='bin\Release' `
+            /p:PublishUrl="C:\Publish" `
             /v:minimal
           
           Write-Host "✅ Build completed"
