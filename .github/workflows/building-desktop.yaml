@@ -139,7 +139,7 @@ jobs:
             /p:PublishUrl="C:\Publish" `
             /v:minimal
           
-          Write-Host "✅ Build completed"
+          Write-Host "Build completed"
 
       - name: Obfuscate Assembly
         shell: powershell
@@ -153,11 +153,11 @@ jobs:
           }
           
           if (-not $obfuscarPath) {
-            Write-Error "❌ Obfuscar no encontrado"
+            Write-Error "Obfuscar no encontrado"
             exit 1
           }
           
-          Write-Host "✅ Obfuscar: $obfuscarPath"
+          Write-Host "Obfuscar: $obfuscarPath"
           
           $projectDir = Split-Path '${{ matrix.project_path }}' -Parent
           $binRelease = Join-Path $projectDir "bin\Release"
@@ -183,22 +183,22 @@ jobs:
           $configPath = Join-Path $projectDir "obfuscation.xml"
           $obfuscationConfig | Out-File -FilePath $configPath -Encoding UTF8
           
-          Write-Host "🔒 Obfuscando archivos en: $binRelease"
+          Write-Host "Obfuscando archivos en: $binRelease"
           Push-Location $projectDir
           
           try {
             & $obfuscarPath $configPath
             
             if ($LASTEXITCODE -ne 0) {
-              Write-Error "❌ Obfuscación falló"
+              Write-Error "Obfuscación falló"
               exit 1
             }
             
-            Write-Host "✅ Obfuscación completada"
+            Write-Host "Obfuscación completada"
             
             # Mostrar archivos obfuscados
             Get-ChildItem $binRelease -Filter "*.exe" | ForEach-Object {
-              Write-Host "   📦 $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
+              Write-Host "   $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
             }
             
           } finally {
