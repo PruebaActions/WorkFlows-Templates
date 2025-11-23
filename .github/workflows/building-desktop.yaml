@@ -190,7 +190,7 @@ jobs:
             </Module>
           </Obfuscator>
           "@
-          
+          $obfuscationConfig = ($obfuscationConfig -split "`n" | ForEach-Object { $_.TrimStart() }) -join "`n"
           $configPath = Join-Path $projectDir "obfuscation.xml"
           $obfuscationConfig | Out-File -FilePath $configPath -Encoding UTF8
           
