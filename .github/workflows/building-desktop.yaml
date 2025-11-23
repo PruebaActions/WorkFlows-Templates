@@ -144,7 +144,7 @@ jobs:
       - name: Obfuscate Assembly
         shell: powershell
         run: |
-          $obfuscarPath = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Obfuscar\Obfuscar.Console.exe"
+          $obfuscarPath = "C:\Users\Administrator\AppData\Local\Microsoft\VisualStudio\17.0_6d29ba01\Extensions\lf44xtf1.gdm\files\Obfuscar.Console.exe"
           
           # Buscar Obfuscar si no está en la ruta por defecto
           if (-not (Test-Path $obfuscarPath)) {
