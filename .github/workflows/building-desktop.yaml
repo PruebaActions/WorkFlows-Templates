@@ -149,7 +149,6 @@ jobs:
           $obfuscarPath = "C:\Users\Administrator\AppData\Local\Microsoft\VisualStudio\17.0_6d29ba01\Extensions\lf44xtf1.gdm\files\Obfuscar.Console.exe"
     
           if (-not (Test-Path $obfuscarPath)) {
-            Write-Host "Buscando Obfuscar..."
             $obfuscarPath = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions" -Recurse -Filter "Obfuscar.Console.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
           }
           
@@ -158,25 +157,40 @@ jobs:
             exit 1
           }
           
-          Write-Host "Obfuscar: $obfuscarPath"
-          
           $projectPath = Resolve-Path '${{ matrix.project_path }}'
           $projectDir = Split-Path $projectPath -Parent
           $binRelease = Join-Path $projectDir "bin\Release"
           
-          Write-Host "Directorio del proyecto: $projectDir"
           Write-Host "Directorio de binarios: $binRelease"
-          
-          if (-not (Test-Path $binRelease)) {
-            Write-Error "El directorio de binarios no existe: $binRelease"
-            exit 1
+          Write-Host ""
+          Write-Host "Archivos antes de obfuscar:"
+          Get-ChildItem $binRelease | ForEach-Object {
+            Write-Host "  - $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
           }
-          
-          Write-Host "Archivos en bin\Release antes de obfuscar:"
-          Get-ChildItem $binRelease -Filter "*.exe" | ForEach-Object { Write-Host "  EXE: $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB" }
-          Get-ChildItem $binRelease -Filter "*.dll" | ForEach-Object { Write-Host "  DLL: $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB" }
           Write-Host ""
           
+          # Buscar el EXE principal (no el de ClickOnce)
+          $exeFiles = Get-ChildItem $binRelease -Filter "*.exe" | Where-Object {
+            $_.Name -eq "AFIFSALESSYSTEM.exe" -and $_.Length -gt 10KB
+          }
+          
+          if ($exeFiles.Count -eq 0) {
+            Write-Warning "No se encontro un EXE principal mayor a 10KB."
+            Write-Warning "Es posible que el Build no haya generado el ejecutable completo."
+            Write-Warning "Archivos .exe encontrados:"
+            Get-ChildItem $binRelease -Filter "*.exe" | ForEach-Object {
+              Write-Host "  - $($_.Name): $($_.Length) bytes"
+            }
+            
+            Write-Host ""
+            Write-Host "Saltando obfuscacion - no hay ejecutable real para obfuscar"
+            exit 0
+          }
+          
+          $exePath = $exeFiles[0].FullName
+          Write-Host "EXE a obfuscar: $exePath"
+          
+          # XML simple solo para el EXE
           $xmlLines = @(
             '<?xml version="1.0"?>',
             '<Obfuscator>',
@@ -184,20 +198,15 @@ jobs:
             "  <Var name=`"OutPath`" value=`"$binRelease`" />",
             '  <Var name="KeepPublicApi" value="true" />',
             '  <Var name="HidePrivateApi" value="true" />',
-            '  <Var name="ReuseNames" value="true" />',
-            '  <Module file="$(InPath)\*.exe" />',
-            '  <Module file="$(InPath)\*.dll">',
-            '    <SkipNamespace name="System.*" />',
-            '    <SkipNamespace name="Microsoft.*" />',
-            '  </Module>',
+            "  <Module file=`"$exePath`" />",
             '</Obfuscator>'
           )
           
           $configPath = Join-Path $projectDir "obfuscation.xml"
           $xmlLines -join "`n" | Out-File -FilePath $configPath -Encoding UTF8
           
-          Write-Host "Archivo de configuracion creado en: $configPath"
-          Write-Host "Iniciando obfuscacion de archivos en: $binRelease"
+          Write-Host ""
+          Write-Host "Iniciando obfuscacion..."
           
           try {
             & $obfuscarPath $configPath
@@ -209,24 +218,8 @@ jobs:
             
             Write-Host "Obfuscacion completada exitosamente"
             
-            Write-Host ""
-            Write-Host "Archivos ejecutables obfuscados:"
-            Get-ChildItem $binRelease -Filter "*.exe" | ForEach-Object {
-              Write-Host "  - $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
-            }
-            
-            Write-Host ""
-            Write-Host "DLLs obfuscados (excluyendo System y Microsoft):"
-            Get-ChildItem $binRelease -Filter "*.dll" | Where-Object { 
-              $_.Name -notlike "System.*" -and 
-              $_.Name -notlike "Microsoft.*" 
-            } | ForEach-Object {
-              Write-Host "  - $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
-            }
-            
           } catch {
-            Write-Error "Error durante la obfuscacion: $_"
-            Write-Host "Stack trace: $($_.ScriptStackTrace)"
+            Write-Error "Error: $_"
             exit 1
           }
 
