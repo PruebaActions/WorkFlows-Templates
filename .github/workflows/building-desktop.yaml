@@ -133,10 +133,12 @@ jobs:
           
           msbuild '${{ matrix.project_path }}' `
             /t:Build `
-            /p:Configuration='Release' `
-            /p:Platform='Any CPU' `
-            /p:OutputPath='bin\Release' `
-            /p:PublishUrl="C:\Publish" `
+            /p:Configuration=Release `
+            /p:Platform="Any CPU" `
+            /p:OutputPath=bin\Release `
+            /p:PublishUrl="" `
+            /p:Install=false `
+            /p:InstallFrom=Web `
             /v:minimal
           
           Write-Host "Build completed"
