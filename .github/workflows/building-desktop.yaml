@@ -142,6 +142,7 @@ jobs:
             /v:minimal
           
           Write-Host "Build completed"
+          Start-Sleep -Seconds 5
 
       - name: Obfuscate Assembly
         shell: powershell
