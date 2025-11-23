@@ -90,30 +90,30 @@ jobs:
         shell: powershell
         run: |
           $today = Get-Date -Format "yyyy.MM.dd"
-          $envFile = "$env:RUNNER_TEMP/version.txt"
+          $runCounterFile = "$env:GITHUB_WORKSPACE/.run-counter"
 
-          # Crear el archivo si no existe (primer build del día)
-          if (-not (Test-Path $envFile)) {
-            Write-Host "🆕 Creando nuevo contador de versión."
-            $version = "$today.1"
-            Set-Content -Path $envFile -Value $version
+          if (Test-Path $runCounterFile) {
+          $lastLine = Get-Content $runCounterFile | Select-Object -Last 1
+          $parts = $lastLine -split '\.'
+          $lastDate = ($parts[0..2] -join '.')
+          $lastRun = [int]$parts[3]
+
+          if ($lastDate -eq $today) {
+            $runNumber = $lastRun + 1
           } else {
-            $lastVersion = Get-Content $envFile | Select-Object -Last 1
-            $parts = $lastVersion -split '\.'
-            $lastDate = ($parts[0..2] -join '.')
-            $run = [int]$parts[3]
-
-            if ($lastDate -eq $today) {
-              $run++
-            } else {
-              $run = 1
-            }
-
-            $version = "$today.$run"
-            Set-Content -Path $envFile -Value $version
+            $runNumber = 1
+          }
+          } else {
+          $runNumber = 1
           }
 
-          Write-Host "📦 Nueva versión generada: $version"
+          $version = "$today.$runNumber"
+          Write-Host "Generated version: $version"
+
+          # Sobrescribe el archivo con la última versión generada
+          $version | Out-File -FilePath $runCounterFile -Encoding UTF8
+
+          # Exporta la variable al pipeline
           echo "appVersion=$version" >> $env:GITHUB_OUTPUT
 
       - name: Replace App.config
