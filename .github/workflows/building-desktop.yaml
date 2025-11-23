@@ -200,8 +200,8 @@ jobs:
       - name: Generate custom publish.htm
         shell: pwsh
         run: |
-          $projectPath = "${{ inputs.project_path }}"
-          $publishDir = "${{ inputs.publishDir }}"
+          $projectPath = "${{ matrix.project_path }}"
+          $publishDir = "${{ matrix.publishDir }}"
           $version = "${{ steps.version.outputs.appVersion }}"
 
           # Leer metadatos desde el .csproj
