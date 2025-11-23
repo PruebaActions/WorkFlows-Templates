@@ -153,23 +153,23 @@ jobs:
           }
           
           if (-not $obfuscarPath) {
-            Write-Error "❌ Obfuscar no encontrado"
+            Write-Error "Obfuscar no encontrado"
             exit 1
           }
           
-          Write-Host "✅ Obfuscar: $obfuscarPath"
+          Write-Host "Obfuscar: $obfuscarPath"
           
           # Resolver a ruta absoluta
           $projectPath = Resolve-Path '${{ matrix.project_path }}'
           $projectDir = Split-Path $projectPath -Parent
           $binRelease = Join-Path $projectDir "bin\Release"
           
-          Write-Host "📂 Directorio del proyecto: $projectDir"
-          Write-Host "📂 Directorio de binarios: $binRelease"
+          Write-Host "Directorio del proyecto: $projectDir"
+          Write-Host "Directorio de binarios: $binRelease"
           
           # Verificar que existe el directorio de binarios
           if (-not (Test-Path $binRelease)) {
-            Write-Error "❌ El directorio de binarios no existe: $binRelease"
+            Write-Error "El directorio de binarios no existe: $binRelease"
             exit 1
           }
           
@@ -194,28 +194,28 @@ jobs:
           $configPath = Join-Path $projectDir "obfuscation.xml"
           $obfuscationConfig | Out-File -FilePath $configPath -Encoding UTF8
           
-          Write-Host "📄 Archivo de configuración creado en: $configPath"
-          Write-Host "🔒 Iniciando obfuscación de archivos en: $binRelease"
+          Write-Host "Archivo de configuración creado en: $configPath"
+          Write-Host "Iniciando obfuscación de archivos en: $binRelease"
           
           try {
             & $obfuscarPath $configPath
             
             if ($LASTEXITCODE -ne 0) {
-              Write-Error "❌ Obfuscación falló con código: $LASTEXITCODE"
+              Write-Error "Obfuscación falló con código: $LASTEXITCODE"
               exit 1
             }
             
-            Write-Host "✅ Obfuscación completada exitosamente"
+            Write-Host "Obfuscación completada exitosamente"
             
             # Mostrar archivos obfuscados
             Write-Host ""
-            Write-Host "📦 Archivos ejecutables obfuscados:"
+            Write-Host "Archivos ejecutables obfuscados:"
             Get-ChildItem $binRelease -Filter "*.exe" | ForEach-Object {
               Write-Host "   ✓ $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
             }
             
             Write-Host ""
-            Write-Host "📦 DLLs obfuscados (excluyendo System y Microsoft):"
+            Write-Host "DLLs obfuscados (excluyendo System y Microsoft):"
             Get-ChildItem $binRelease -Filter "*.dll" | Where-Object { 
               $_.Name -notlike "System.*" -and 
               $_.Name -notlike "Microsoft.*" 
@@ -224,7 +224,7 @@ jobs:
             }
             
           } catch {
-            Write-Error "❌ Error durante la obfuscación: $_"
+            Write-Error "Error durante la obfuscación: $_"
             Write-Host "Stack trace: $($_.ScriptStackTrace)"
             exit 1
           }
