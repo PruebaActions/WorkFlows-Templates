@@ -247,7 +247,7 @@ jobs:
             exit 1
           }
 
-          Write-Host "`n📋 Archivos finales en bin\\Release:"
+          Write-Host "Archivos finales en bin\\Release:"
           Get-ChildItem $binRelease | Select-Object Name, Length | Format-Table
 
       - name: Build and Publish ClickOnce
