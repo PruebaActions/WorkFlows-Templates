@@ -190,11 +190,25 @@ jobs:
             </Module>
           </Obfuscator>
           "@
-          $obfuscationConfig = ($obfuscationConfig -split "`n" | ForEach-Object { $_.TrimStart() }) -join "`n"
+          
+          # Limpiar solo el exceso de indentación (10 espacios que agrega YAML)
+          $obfuscationConfig = $obfuscationConfig -replace '(?m)^          ', ''
+          
           $configPath = Join-Path $projectDir "obfuscation.xml"
           $obfuscationConfig | Out-File -FilePath $configPath -Encoding UTF8
           
           Write-Host "Archivo de configuración creado en: $configPath"
+          Write-Host ""
+          Write-Host "========== CONTENIDO DEL XML GENERADO =========="
+          Get-Content $configPath | ForEach-Object { Write-Host $_ }
+          Write-Host "================================================"
+          Write-Host ""
+          
+          # Verificar que los archivos a obfuscar existen
+          Write-Host "Archivos en $binRelease antes de obfuscar:"
+          Get-ChildItem $binRelease | Select-Object Name, Length | ForEach-Object { Write-Host "  $($_.Name) - $($_.Length) bytes" }
+          Write-Host ""
+          
           Write-Host "Iniciando obfuscación de archivos en: $binRelease"
           
           try {
