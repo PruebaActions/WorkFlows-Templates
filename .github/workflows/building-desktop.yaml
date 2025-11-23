@@ -6,36 +6,6 @@ on:
       CERT_PASSWORD_SALES:
         required: false
     inputs:
-      # assemblyVersion:
-      #   type: string
-      #   required: false
-      # publishDir:
-      #   type: string
-      #   required: false
-      # installUrl:
-      #   type: string
-      #   required: false
-      # project_path:
-      #   type: string
-      #   required: false
-      # sln_path:
-      #   type: string
-      #   required: false
-      # appConfigPath:
-      #   type: string
-      #   required: false
-      # assemblyInfo_path:
-      #   type: string
-      #   required: false
-      # dest_appConfig_path:
-      #   type: string
-      #   required: false
-      # msi_project_path:
-      #   required: false
-      #   type: string
-      # cert_path:
-      #   required: false
-      #   type: string
       projects_json:
         required: false
         type: string
@@ -155,6 +125,84 @@ jobs:
 
       - name: Restore NuGet packages
         run: nuget restore "${{ matrix.sln_path }}"
+      
+      - name: Build Project (without publish)
+        shell: powershell
+        run: |
+          Write-Host "Building project without publishing..."
+          
+          msbuild '${{ matrix.project_path }}' `
+            /t:Build `
+            /p:Configuration='Release' `
+            /p:Platform='Any CPU' `
+            /p:OutputPath='bin\Release' `
+            /v:minimal
+          
+          Write-Host "✅ Build completed"
+
+      - name: Obfuscate Assembly
+        shell: powershell
+        run: |
+          $obfuscarPath = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Obfuscar\Obfuscar.Console.exe"
+          
+          # Buscar Obfuscar si no está en la ruta por defecto
+          if (-not (Test-Path $obfuscarPath)) {
+            Write-Host "Buscando Obfuscar..."
+            $obfuscarPath = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions" -Recurse -Filter "Obfuscar.Console.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          }
+          
+          if (-not $obfuscarPath) {
+            Write-Error "❌ Obfuscar no encontrado"
+            exit 1
+          }
+          
+          Write-Host "✅ Obfuscar: $obfuscarPath"
+          
+          $projectDir = Split-Path '${{ matrix.project_path }}' -Parent
+          $binRelease = Join-Path $projectDir "bin\Release"
+          
+          # Crear configuración de obfuscación
+          $obfuscationConfig = @"
+          <?xml version="1.0"?>
+          <Obfuscator>
+            <Var name="InPath" value="$binRelease" />
+            <Var name="OutPath" value="$binRelease" />
+            <Var name="KeepPublicApi" value="true" />
+            <Var name="HidePrivateApi" value="true" />
+            <Var name="ReuseNames" value="true" />
+            
+            <Module file="`$(InPath)\*.exe" />
+            <Module file="`$(InPath)\*.dll">
+              <SkipNamespace name="System.*" />
+              <SkipNamespace name="Microsoft.*" />
+            </Module>
+          </Obfuscator>
+          "@
+          
+          $configPath = Join-Path $projectDir "obfuscation.xml"
+          $obfuscationConfig | Out-File -FilePath $configPath -Encoding UTF8
+          
+          Write-Host "🔒 Obfuscando archivos en: $binRelease"
+          Push-Location $projectDir
+          
+          try {
+            & $obfuscarPath $configPath
+            
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "❌ Obfuscación falló"
+              exit 1
+            }
+            
+            Write-Host "✅ Obfuscación completada"
+            
+            # Mostrar archivos obfuscados
+            Get-ChildItem $binRelease -Filter "*.exe" | ForEach-Object {
+              Write-Host "   📦 $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
+            }
+            
+          } finally {
+            Pop-Location
+          }
 
       - name: Build and Publish ClickOnce
         shell: powershell
