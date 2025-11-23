@@ -169,26 +169,17 @@ jobs:
           }
           Write-Host ""
           
-          # Buscar el EXE principal (no el de ClickOnce)
-          $exeFiles = Get-ChildItem $binRelease -Filter "*.exe" | Where-Object {
-            $_.Name -eq "AFIFSALESSYSTEM.exe" -and $_.Length -gt 10KB
+          # Buscar el EXE principal
+          $exeFile = Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | Select-Object -First 1
+          
+          if (-not $exeFile) {
+            Write-Error "No se encontro AFIFSALESSYSTEM.exe"
+            exit 1
           }
           
-          if ($exeFiles.Count -eq 0) {
-            Write-Warning "No se encontro un EXE principal mayor a 10KB."
-            Write-Warning "Es posible que el Build no haya generado el ejecutable completo."
-            Write-Warning "Archivos .exe encontrados:"
-            Get-ChildItem $binRelease -Filter "*.exe" | ForEach-Object {
-              Write-Host "  - $($_.Name): $($_.Length) bytes"
-            }
-            
-            Write-Host ""
-            Write-Host "Saltando obfuscacion - no hay ejecutable real para obfuscar"
-            exit 0
-          }
-          
-          $exePath = $exeFiles[0].FullName
-          Write-Host "EXE a obfuscar: $exePath"
+          $exePath = $exeFile.FullName
+          Write-Host "EXE a obfuscar: $exePath ($([math]::Round($exeFile.Length/1KB, 2)) KB)"
+          Write-Host ""
           
           # XML simple solo para el EXE
           $xmlLines = @(
@@ -205,7 +196,10 @@ jobs:
           $configPath = Join-Path $projectDir "obfuscation.xml"
           $xmlLines -join "`n" | Out-File -FilePath $configPath -Encoding UTF8
           
+          Write-Host "XML de configuracion:"
+          Get-Content $configPath | ForEach-Object { Write-Host "  $_" }
           Write-Host ""
+          
           Write-Host "Iniciando obfuscacion..."
           
           try {
@@ -217,6 +211,11 @@ jobs:
             }
             
             Write-Host "Obfuscacion completada exitosamente"
+            Write-Host ""
+            Write-Host "Archivo obfuscado:"
+            Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | ForEach-Object {
+              Write-Host "  - $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
+            }
             
           } catch {
             Write-Error "Error: $_"
