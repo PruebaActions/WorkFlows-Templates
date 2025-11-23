@@ -145,7 +145,7 @@ jobs:
         shell: powershell
         run: |
           $obfuscarPath = "C:\Users\Administrator\AppData\Local\Microsoft\VisualStudio\17.0_6d29ba01\Extensions\lf44xtf1.gdm\files\Obfuscar.Console.exe"
-          
+    
           # Buscar Obfuscar si no está en la ruta por defecto
           if (-not (Test-Path $obfuscarPath)) {
             Write-Host "Buscando Obfuscar..."
@@ -153,16 +153,29 @@ jobs:
           }
           
           if (-not $obfuscarPath) {
-            Write-Error "Obfuscar no encontrado"
+            Write-Error "❌ Obfuscar no encontrado"
             exit 1
           }
           
-          Write-Host "Obfuscar: $obfuscarPath"
+          Write-Host "✅ Obfuscar: $obfuscarPath"
           
-          $projectDir = Split-Path '${{ matrix.project_path }}' -Parent
+          # IMPORTANTE: Resolver a ruta absoluta
+          $projectPath = Resolve-Path '${{ matrix.project_path }}'
+          $projectDir = Split-Path $projectPath -Parent
           $binRelease = Join-Path $projectDir "bin\Release"
           
-          # Crear configuración de obfuscación
+          Write-Host "📂 Directorio del proyecto: $projectDir"
+          Write-Host "📂 Directorio de binarios: $binRelease"
+          
+          # Verificar que existe el directorio de binarios
+          if (-not (Test-Path $binRelease)) {
+            Write-Error "❌ El directorio de binarios no existe: $binRelease"
+            Write-Host "Contenido del directorio del proyecto:"
+            Get-ChildItem $projectDir -Recurse | Select-Object FullName
+            exit 1
+          }
+          
+          # Crear configuración de obfuscación con rutas absolutas
           $obfuscationConfig = @"
           <?xml version="1.0"?>
           <Obfuscator>
@@ -179,30 +192,42 @@ jobs:
             </Module>
           </Obfuscator>
           "@
-          
+              
           $configPath = Join-Path $projectDir "obfuscation.xml"
           $obfuscationConfig | Out-File -FilePath $configPath -Encoding UTF8
           
-          Write-Host "Obfuscando archivos en: $binRelease"
-          Push-Location $projectDir
+          Write-Host "📄 Archivo de configuración creado en: $configPath"
+          Write-Host "🔒 Iniciando obfuscación de archivos en: $binRelease"
           
+          # NO usar Push-Location, ejecutar directamente con ruta absoluta
           try {
             & $obfuscarPath $configPath
             
             if ($LASTEXITCODE -ne 0) {
-              Write-Error "Obfuscación falló"
+              Write-Error "❌ Obfuscación falló con código: $LASTEXITCODE"
               exit 1
             }
             
-            Write-Host "Obfuscación completada"
+            Write-Host "✅ Obfuscación completada exitosamente"
             
             # Mostrar archivos obfuscados
+            Write-Host "`n📦 Archivos ejecutables obfuscados:"
             Get-ChildItem $binRelease -Filter "*.exe" | ForEach-Object {
-              Write-Host "   $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
+              Write-Host "   ✓ $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
             }
             
-          } finally {
-            Pop-Location
+            Write-Host "`n📦 DLLs obfuscados (excluyendo System y Microsoft):"
+            Get-ChildItem $binRelease -Filter "*.dll" | Where-Object { 
+              $_.Name -notlike "System.*" -and 
+              $_.Name -notlike "Microsoft.*" 
+            } | ForEach-Object {
+              Write-Host "   ✓ $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
+            }
+            
+          } catch {
+            Write-Error "❌ Error durante la obfuscación: $_"
+            Write-Host "Stack trace: $($_.ScriptStackTrace)"
+            exit 1
           }
 
       - name: Build and Publish ClickOnce
