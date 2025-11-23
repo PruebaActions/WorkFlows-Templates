@@ -154,7 +154,7 @@ jobs:
           }
           
           if (-not $obfuscarPath) {
-            Write-Error "Obfuscar no encontrado"
+            Write-Error "❌ Obfuscar no encontrado"
             exit 1
           }
           
@@ -163,105 +163,92 @@ jobs:
           $binRelease = Join-Path $projectDir "bin\Release"
           $obfuscatedDir = Join-Path $projectDir "bin\Obfuscated"
           
-          # Crear directorio temporal para archivos obfuscados
           if (Test-Path $obfuscatedDir) {
             Remove-Item $obfuscatedDir -Recurse -Force
           }
           New-Item -ItemType Directory -Path $obfuscatedDir | Out-Null
           
-          Write-Host "Directorio de binarios: $binRelease"
-          Write-Host "Directorio de salida obfuscado: $obfuscatedDir"
-          Write-Host ""
+          Write-Host "📁 Binarios: $binRelease"
+          Write-Host "📁 Obfuscados: $obfuscatedDir"
           
-          # Buscar el EXE principal
           $exeFile = Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | Select-Object -First 1
-          
           if (-not $exeFile) {
-            Write-Error "No se encontro AFIFSALESSYSTEM.exe"
+            Write-Error "❌ No se encontró AFIFSALESSYSTEM.exe"
             exit 1
           }
-          
+
           $exePath = $exeFile.FullName
-          Write-Host "EXE a obfuscar: $exePath ($([math]::Round($exeFile.Length/1KB, 2)) KB)"
-          Write-Host ""
-          
-          # XML con directorio de salida diferente
+          Write-Host "🔍 Archivo a ofuscar: $exePath ($([math]::Round($exeFile.Length/1KB, 2)) KB)"
+
+          # XML de configuración más completo
           $xmlLines = @(
             '<?xml version="1.0"?>',
             '<Obfuscator>',
             "  <Var name=`"InPath`" value=`"$binRelease`" />",
             "  <Var name=`"OutPath`" value=`"$obfuscatedDir`" />",
-            '  <Var name="KeepPublicApi" value="true" />',
+            '  <Var name="KeepPublicApi" value="false" />',
             '  <Var name="HidePrivateApi" value="true" />',
+            '  <Var name="RenameProperties" value="true" />',
+            '  <Var name="RenameFields" value="true" />',
+            '  <Var name="RenameEvents" value="true" />',
+            '  <Var name="RenameParameters" value="true" />',
+            '  <Var name="SuppressIldasm" value="true" />',
+            '  <Var name="HideStrings" value="true" />',
             "  <Module file=`"$exePath`" />",
             '</Obfuscator>'
           )
-          
+
           $configPath = Join-Path $projectDir "obfuscation.xml"
           $xmlLines -join "`n" | Out-File -FilePath $configPath -Encoding UTF8
-          
-          Write-Host "Iniciando obfuscacion..."
-          
-          try {
-            & $obfuscarPath $configPath
-            
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Obfuscacion fallo con codigo: $LASTEXITCODE"
-              exit 1
-            }
-            
-            Write-Host "Obfuscacion completada exitosamente"
-            Write-Host ""
-            
-            # Esperar un momento para asegurar que Obfuscar terminó
-            Start-Sleep -Seconds 2
-            
-            # Copiar el archivo obfuscado de vuelta a bin\Release
-            $obfuscatedExe = Join-Path $obfuscatedDir "AFIFSALESSYSTEM.exe"
-            
-            if (Test-Path $obfuscatedExe) {
-              Write-Host "Copiando archivo obfuscado a bin\Release..."
-              
-              # Intentar eliminar el original con reintentos
-              $maxRetries = 5
-              $retryCount = 0
-              $deleted = $false
-              
-              while ($retryCount -lt $maxRetries -and -not $deleted) {
-                try {
-                  Remove-Item $exePath -Force
-                  $deleted = $true
-                } catch {
-                  $retryCount++
-                  Write-Host "Intentando eliminar archivo original (intento $retryCount de $maxRetries)..."
-                  Start-Sleep -Seconds 1
-                }
-              }
-              
-              if (-not $deleted) {
-                Write-Error "No se pudo eliminar el archivo original"
-                exit 1
-              }
-              
-              # Copiar el obfuscado
-              Copy-Item $obfuscatedExe $exePath -Force
-              Write-Host "Archivo obfuscado copiado exitosamente"
-              
-              Write-Host ""
-              Write-Host "Archivo final:"
-              Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | ForEach-Object {
-                Write-Host "  - $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
-              }
-              
-            } else {
-              Write-Error "No se encontro el archivo obfuscado en $obfuscatedDir"
-              exit 1
-            }
-            
-          } catch {
-            Write-Error "Error: $_"
+
+          Write-Host "🚀 Iniciando ofuscación..."
+          & $obfuscarPath $configPath
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "❌ Obfuscación falló con código $LASTEXITCODE"
             exit 1
           }
+
+          Write-Host "✅ Obfuscación completada exitosamente."
+          Start-Sleep -Seconds 2
+
+          $obfuscatedExe = Join-Path $obfuscatedDir "AFIFSALESSYSTEM.exe"
+
+          if (Test-Path $obfuscatedExe) {
+            Write-Host "⚙️ Reemplazando archivo original con versión ofuscada..."
+
+            # Reintentar eliminación del original si está bloqueado
+            for ($i = 1; $i -le 5; $i++) {
+              try {
+                if (Test-Path $exePath) {
+                  Remove-Item -Path $exePath -Force -ErrorAction Stop
+                }
+                break
+              } catch {
+                Write-Host "Archivo bloqueado, reintentando ($i/5)..."
+                Start-Sleep -Seconds 2
+              }
+            }
+
+            # Copiar versión ofuscada
+            Copy-Item -Path $obfuscatedExe -Destination $exePath -Force
+            Write-Host "✅ Archivo ofuscado copiado a bin\\Release"
+
+            # Mostrar resultado final
+            Write-Host "`n📦 Resultado final:"
+            Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | 
+              Select-Object Name, Length, LastWriteTime | Format-Table
+
+            # Limpiar carpeta temporal
+            Remove-Item $obfuscatedDir -Recurse -Force
+          }
+          else {
+            Write-Error "❌ No se encontró el archivo ofuscado en $obfuscatedDir"
+            exit 1
+          }
+
+          Write-Host "`n📋 Archivos finales en bin\\Release:"
+          Get-ChildItem $binRelease | Select-Object Name, Length | Format-Table
 
       - name: Build and Publish ClickOnce
         shell: powershell
