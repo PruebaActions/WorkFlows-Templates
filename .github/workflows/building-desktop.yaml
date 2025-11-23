@@ -253,9 +253,6 @@ jobs:
                 Write-Host "  - $($_.Name) - $([math]::Round($_.Length/1KB, 2)) KB"
               }
               
-              # Limpiar directorio temporal
-              Remove-Item $obfuscatedDir -Recurse -Force
-              
             } else {
               Write-Error "No se encontro el archivo obfuscado en $obfuscatedDir"
               exit 1
