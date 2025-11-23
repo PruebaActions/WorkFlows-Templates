@@ -235,7 +235,7 @@ jobs:
             Write-Host "Archivo ofuscado copiado a bin\\Release"
 
             # Mostrar resultado final
-            Write-Host "`n Resultado final:"
+            Write-Host "Resultado final:"
             Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | 
               Select-Object Name, Length, LastWriteTime | Format-Table
 
