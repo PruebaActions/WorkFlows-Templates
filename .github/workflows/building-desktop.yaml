@@ -126,23 +126,23 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore "${{ matrix.sln_path }}"
       
-      # - name: Build Project (without publish)
-      #   shell: powershell
-      #   run: |
-      #     Write-Host "Building project without publishing..."
+      - name: Build Project (without publish)
+        shell: powershell
+        run: |
+          Write-Host "Building project without publishing..."
           
-      #     msbuild '${{ matrix.project_path }}' `
-      #       /t:Build `
-      #       /p:Configuration=Release `
-      #       /p:Platform="Any CPU" `
-      #       /p:OutputPath=bin\Release `
-      #       /p:PublishUrl="" `
-      #       /p:Install=false `
-      #       /p:InstallFrom=Web `
-      #       /v:minimal
+          msbuild '${{ matrix.project_path }}' `
+            /t:Build `
+            /p:Configuration=Release `
+            /p:Platform="Any CPU" `
+            /p:OutputPath=bin\Release `
+            /p:PublishUrl="" `
+            /p:Install=false `
+            /p:InstallFrom=Web `
+            /v:minimal
           
-      #     Write-Host "Build completed"
-      #     Start-Sleep -Seconds 5
+          Write-Host "Build completed"
+          Start-Sleep -Seconds 5
 
       - name: Obfuscate Assembly
         shell: powershell
