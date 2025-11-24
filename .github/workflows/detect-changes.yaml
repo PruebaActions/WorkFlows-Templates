@@ -1,0 +1,56 @@
+name: Detect Changes
+
+on:
+  workflow_call:
+    inputs:
+      paths_to_check:
+        required: true
+        type: string
+
+
+jobs:
+  check-changes:
+    runs-on:
+      group: DAST
+    strategy:
+      matrix: ${{ fromJson(inputs.paths_to_check) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Check for changes in both directories
+        id: check_changes
+        shell: pwsh  # Indica que el script debe ejecutarse en PowerShell
+        run: |
+          # Asegúrate de obtener los commits correctos
+          $commitBefore = "${{ github.event.before }}"
+          $commitCurrent = "${{ github.sha }}"
+          $pathToCheck = "${{ matrix.paths_to_check }}[0]"
+          Write-Host "Commit Before: $pathToCheck"
+
+          # Verifica si los commits son válidos
+          if (-not $commitBefore -or -not $commitCurrent) {
+            Write-Host "Invalid commit references. Exiting job."
+            exit 1
+          }
+
+          Write-Host "Checking differences between commits $commitBefore and $commitCurrent..."
+
+          # Obtén los cambios entre el commit actual y el commit anterior
+          $changesApi = git diff --name-only $commitBefore $commitCurrent | Where-Object { $_ -like 'DescopeSampleApp/Views/*' }
+          $changesWebsite = git diff --name-only $commitBefore $commitCurrent | Where-Object { $_ -like 'DescopeSampleApp/Controllers/*' }
+
+          Write-Host "API changes: $changesApi"
+          Write-Host "Website changes: $changesWebsite"
+
+          # Verifica si ambos directorios tienen cambios
+          if (-not $changesApi -or -not $changesWebsite) {
+            Write-Host "Not both directories have changes. Exiting job."
+            exit 1  # Sale sin ejecutar el resto del flujo si uno de los directorios no tiene cambios
+          } else {
+            Write-Host "Both directories have changes. Continuing job."
+            exit 0
+          }
