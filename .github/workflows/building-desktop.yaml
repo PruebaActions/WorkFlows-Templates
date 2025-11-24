@@ -240,7 +240,7 @@ jobs:
               Select-Object Name, Length, LastWriteTime | Format-Table
 
             # Limpiar carpeta temporal
-            Remove-Item $obfuscatedDir -Recurse -Force
+            # Remove-Item $obfuscatedDir -Recurse -Force
           }
           else {
             Write-Error "No se encontró el archivo ofuscado en $obfuscatedDir"
