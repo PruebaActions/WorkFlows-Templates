@@ -13,7 +13,8 @@ jobs:
     runs-on:
       group: DAST
     strategy:
-      matrix: ${{ fromJson(inputs.paths_to_check) }}
+      matrix: 
+        path: ${{ fromJson(inputs.paths_to_check) }}
 
     steps:
       - name: Checkout code
@@ -28,7 +29,7 @@ jobs:
           # Asegúrate de obtener los commits correctos
           $commitBefore = "${{ github.event.before }}"
           $commitCurrent = "${{ github.sha }}"
-          $pathToCheck = "${{ matrix.paths_to_check }}[0]"
+          $pathToCheck = "${{ matrix.path }}[0]"
           Write-Host "Commit Before: $pathToCheck"
 
           # Verifica si los commits son válidos
