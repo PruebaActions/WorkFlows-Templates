@@ -52,39 +52,39 @@ jobs:
     steps:
       # - name: Checkout current branch
       #   uses: actions/checkout@v4
-      #   # with:
-      #   #   ref: ${{ github.ref_name }}
+        # with:
+        #   ref: ${{ github.ref_name }}
 
-      # - name: Generate dynamic version
-      #   id: version
-      #   shell: powershell
-      #   run: |
-      #     $today = Get-Date -Format "yyyy.MM.dd"
-      #     $runCounterFile = "$env:GITHUB_WORKSPACE/.run-counter"
+      - name: Generate dynamic version
+        id: version
+        shell: powershell
+        run: |
+          $today = Get-Date -Format "yyyy.MM.dd"
+          $runCounterFile = "$env:GITHUB_WORKSPACE/.run-counter"
 
-      #     if (Test-Path $runCounterFile) {
-      #     $lastLine = Get-Content $runCounterFile | Select-Object -Last 1
-      #     $parts = $lastLine -split '\.'
-      #     $lastDate = ($parts[0..2] -join '.')
-      #     $lastRun = [int]$parts[3]
+          if (Test-Path $runCounterFile) {
+          $lastLine = Get-Content $runCounterFile | Select-Object -Last 1
+          $parts = $lastLine -split '\.'
+          $lastDate = ($parts[0..2] -join '.')
+          $lastRun = [int]$parts[3]
 
-      #     if ($lastDate -eq $today) {
-      #       $runNumber = $lastRun + 1
-      #     } else {
-      #       $runNumber = 1
-      #     }
-      #     } else {
-      #     $runNumber = 1
-      #     }
+          if ($lastDate -eq $today) {
+            $runNumber = $lastRun + 1
+          } else {
+            $runNumber = 1
+          }
+          } else {
+          $runNumber = 1
+          }
 
-      #     $version = "$today.$runNumber"
-      #     Write-Host "Generated version: $version"
+          $version = "$today.$runNumber"
+          Write-Host "Generated version: $version"
 
-      #     # Sobrescribe el archivo con la última versión generada
-      #     $version | Out-File -FilePath $runCounterFile -Encoding UTF8
+          # Sobrescribe el archivo con la última versión generada
+          $version | Out-File -FilePath $runCounterFile -Encoding UTF8
 
-      #     # Exporta la variable al pipeline
-      #     echo "appVersion=$version" >> $env:GITHUB_OUTPUT
+          # Exporta la variable al pipeline
+          echo "appVersion=$version" >> $env:GITHUB_OUTPUT
 
       # - name: Replace App.config
       #   shell: powershell
@@ -283,6 +283,8 @@ jobs:
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
             /p:OutputPath='bin\Release' `
+            /p:BuildProject=false `
+            /p:Rebuild=false `
             /v:minimal 
             # /p:SignManifests=true `
             # /p:ManifestKeyFile= `
