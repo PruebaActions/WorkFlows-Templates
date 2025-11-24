@@ -50,205 +50,205 @@ jobs:
     # if: ${{ needs.sql_scripts_execution.outputs.success == 'true' }}
 
     steps:
-      - name: Checkout current branch
-        uses: actions/checkout@v4
-        # with:
-        #   ref: ${{ github.ref_name }}
+      # - name: Checkout current branch
+      #   uses: actions/checkout@v4
+      #   # with:
+      #   #   ref: ${{ github.ref_name }}
 
-      - name: Generate dynamic version
-        id: version
-        shell: powershell
-        run: |
-          $today = Get-Date -Format "yyyy.MM.dd"
-          $runCounterFile = "$env:GITHUB_WORKSPACE/.run-counter"
+      # - name: Generate dynamic version
+      #   id: version
+      #   shell: powershell
+      #   run: |
+      #     $today = Get-Date -Format "yyyy.MM.dd"
+      #     $runCounterFile = "$env:GITHUB_WORKSPACE/.run-counter"
 
-          if (Test-Path $runCounterFile) {
-          $lastLine = Get-Content $runCounterFile | Select-Object -Last 1
-          $parts = $lastLine -split '\.'
-          $lastDate = ($parts[0..2] -join '.')
-          $lastRun = [int]$parts[3]
+      #     if (Test-Path $runCounterFile) {
+      #     $lastLine = Get-Content $runCounterFile | Select-Object -Last 1
+      #     $parts = $lastLine -split '\.'
+      #     $lastDate = ($parts[0..2] -join '.')
+      #     $lastRun = [int]$parts[3]
 
-          if ($lastDate -eq $today) {
-            $runNumber = $lastRun + 1
-          } else {
-            $runNumber = 1
-          }
-          } else {
-          $runNumber = 1
-          }
+      #     if ($lastDate -eq $today) {
+      #       $runNumber = $lastRun + 1
+      #     } else {
+      #       $runNumber = 1
+      #     }
+      #     } else {
+      #     $runNumber = 1
+      #     }
 
-          $version = "$today.$runNumber"
-          Write-Host "Generated version: $version"
+      #     $version = "$today.$runNumber"
+      #     Write-Host "Generated version: $version"
 
-          # Sobrescribe el archivo con la última versión generada
-          $version | Out-File -FilePath $runCounterFile -Encoding UTF8
+      #     # Sobrescribe el archivo con la última versión generada
+      #     $version | Out-File -FilePath $runCounterFile -Encoding UTF8
 
-          # Exporta la variable al pipeline
-          echo "appVersion=$version" >> $env:GITHUB_OUTPUT
+      #     # Exporta la variable al pipeline
+      #     echo "appVersion=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Replace App.config
-        shell: powershell
-        run: |
-          $source = "${{ matrix.appConfigPath }}"
-          $destination = "${{ matrix.dest_appConfig_path }}"
+      # - name: Replace App.config
+      #   shell: powershell
+      #   run: |
+      #     $source = "${{ matrix.appConfigPath }}"
+      #     $destination = "${{ matrix.dest_appConfig_path }}"
 
-          if (Test-Path $source) {
-            Write-Host "Replacing App.config with $source"
-            Copy-Item -Path $source -Destination $destination -Force
-          } else {
-            Write-Error "App.config not found: $source"
-            exit 1
-          }
+      #     if (Test-Path $source) {
+      #       Write-Host "Replacing App.config with $source"
+      #       Copy-Item -Path $source -Destination $destination -Force
+      #     } else {
+      #       Write-Error "App.config not found: $source"
+      #       exit 1
+      #     }
 
-      - name: Update AssemblyInfo version
-        shell: powershell
-        run: |
-          $assemblyInfo = "${{ matrix.assemblyInfo_path }}"
-          $assemblyVersion = "${{ matrix.assemblyVersion }}"
-          $appVersion = "${{ steps.version.outputs.appVersion }}"
-          Write-Host "Updating AssemblyVersion to $assemblyVersion"
-          Write-Host "Updating FileVersion to $appVersion"
+      # - name: Update AssemblyInfo version
+      #   shell: powershell
+      #   run: |
+      #     $assemblyInfo = "${{ matrix.assemblyInfo_path }}"
+      #     $assemblyVersion = "${{ matrix.assemblyVersion }}"
+      #     $appVersion = "${{ steps.version.outputs.appVersion }}"
+      #     Write-Host "Updating AssemblyVersion to $assemblyVersion"
+      #     Write-Host "Updating FileVersion to $appVersion"
 
-          (Get-Content $assemblyInfo) |
-            ForEach-Object {
-              $_ -replace 'AssemblyVersion\(".*"\)', "AssemblyVersion(`"$assemblyVersion`")" `
-                 -replace 'AssemblyFileVersion\(".*"\)', "AssemblyFileVersion(`"$appVersion`")"
-            } | Set-Content $assemblyInfo
+      #     (Get-Content $assemblyInfo) |
+      #       ForEach-Object {
+      #         $_ -replace 'AssemblyVersion\(".*"\)', "AssemblyVersion(`"$assemblyVersion`")" `
+      #            -replace 'AssemblyFileVersion\(".*"\)', "AssemblyFileVersion(`"$appVersion`")"
+      #       } | Set-Content $assemblyInfo
 
-      - name: Validate publish directory
-        shell: powershell
-        run: |
-          if (-not (Test-Path "${{ matrix.publishDir }}")) {
-            Write-Host "Creating publish directory..."
-            New-Item -ItemType Directory -Force -Path "${{ matrix.publishDir }}"
-          }
+      # - name: Validate publish directory
+      #   shell: powershell
+      #   run: |
+      #     if (-not (Test-Path "${{ matrix.publishDir }}")) {
+      #       Write-Host "Creating publish directory..."
+      #       New-Item -ItemType Directory -Force -Path "${{ matrix.publishDir }}"
+      #     }
 
-      - name: Restore NuGet packages
-        run: nuget restore "${{ matrix.sln_path }}"
+      # - name: Restore NuGet packages
+      #   run: nuget restore "${{ matrix.sln_path }}"
       
-      - name: Build Project (without publish)
-        shell: powershell
-        run: |
-          Write-Host "Building project without publishing..."
+      # - name: Build Project (without publish)
+      #   shell: powershell
+      #   run: |
+      #     Write-Host "Building project without publishing..."
           
-          msbuild '${{ matrix.project_path }}' `
-            /t:Build `
-            /p:Configuration=Release `
-            /p:Platform="Any CPU" `
-            /p:OutputPath=bin\Release `
-            /p:PublishUrl="" `
-            /p:Install=false `
-            /p:InstallFrom=Web `
-            /v:minimal
+      #     msbuild '${{ matrix.project_path }}' `
+      #       /t:Build `
+      #       /p:Configuration=Release `
+      #       /p:Platform="Any CPU" `
+      #       /p:OutputPath=bin\Release `
+      #       /p:PublishUrl="" `
+      #       /p:Install=false `
+      #       /p:InstallFrom=Web `
+      #       /v:minimal
           
-          Write-Host "Build completed"
-          Start-Sleep -Seconds 5
+      #     Write-Host "Build completed"
+      #     Start-Sleep -Seconds 5
 
-      - name: Obfuscate Assembly
-        shell: powershell
-        run: |
-          $obfuscarPath = "C:\Users\Administrator\AppData\Local\Microsoft\VisualStudio\17.0_6d29ba01\Extensions\lf44xtf1.gdm\files\Obfuscar.Console.exe"
+      # - name: Obfuscate Assembly
+      #   shell: powershell
+      #   run: |
+      #     $obfuscarPath = "C:\Users\Administrator\AppData\Local\Microsoft\VisualStudio\17.0_6d29ba01\Extensions\lf44xtf1.gdm\files\Obfuscar.Console.exe"
     
-          if (-not (Test-Path $obfuscarPath)) {
-            $obfuscarPath = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions" -Recurse -Filter "Obfuscar.Console.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-          }
+      #     if (-not (Test-Path $obfuscarPath)) {
+      #       $obfuscarPath = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions" -Recurse -Filter "Obfuscar.Console.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+      #     }
           
-          if (-not $obfuscarPath) {
-            Write-Error "Obfuscar no encontrado"
-            exit 1
-          }
+      #     if (-not $obfuscarPath) {
+      #       Write-Error "Obfuscar no encontrado"
+      #       exit 1
+      #     }
           
-          $projectPath = Resolve-Path '${{ matrix.project_path }}'
-          $projectDir = Split-Path $projectPath -Parent
-          $binRelease = Join-Path $projectDir "bin\Release"
-          $obfuscatedDir = Join-Path $projectDir "bin\Obfuscated"
+      #     $projectPath = Resolve-Path '${{ matrix.project_path }}'
+      #     $projectDir = Split-Path $projectPath -Parent
+      #     $binRelease = Join-Path $projectDir "bin\Release"
+      #     $obfuscatedDir = Join-Path $projectDir "bin\Obfuscated"
           
-          if (Test-Path $obfuscatedDir) {
-            Remove-Item $obfuscatedDir -Recurse -Force
-          }
-          New-Item -ItemType Directory -Path $obfuscatedDir | Out-Null
+      #     if (Test-Path $obfuscatedDir) {
+      #       Remove-Item $obfuscatedDir -Recurse -Force
+      #     }
+      #     New-Item -ItemType Directory -Path $obfuscatedDir | Out-Null
           
-          Write-Host "Binarios: $binRelease"
-          Write-Host "Obfuscados: $obfuscatedDir"
+      #     Write-Host "Binarios: $binRelease"
+      #     Write-Host "Obfuscados: $obfuscatedDir"
           
-          $exeFile = Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | Select-Object -First 1
-          if (-not $exeFile) {
-            Write-Error "No se encontró AFIFSALESSYSTEM.exe"
-            exit 1
-          }
+      #     $exeFile = Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | Select-Object -First 1
+      #     if (-not $exeFile) {
+      #       Write-Error "No se encontró AFIFSALESSYSTEM.exe"
+      #       exit 1
+      #     }
 
-          $exePath = $exeFile.FullName
-          Write-Host "Archivo a ofuscar: $exePath ($([math]::Round($exeFile.Length/1KB, 2)) KB)"
+      #     $exePath = $exeFile.FullName
+      #     Write-Host "Archivo a ofuscar: $exePath ($([math]::Round($exeFile.Length/1KB, 2)) KB)"
 
-          # XML de configuración más completo
-          $xmlLines = @(
-            '<?xml version="1.0"?>',
-            '<Obfuscator>',
-            "  <Var name=`"InPath`" value=`"$binRelease`" />",
-            "  <Var name=`"OutPath`" value=`"$obfuscatedDir`" />",
-            '  <Var name="KeepPublicApi" value="false" />',
-            '  <Var name="HidePrivateApi" value="true" />',
-            '  <Var name="RenameProperties" value="true" />',
-            '  <Var name="RenameFields" value="true" />',
-            '  <Var name="RenameEvents" value="true" />',
-            '  <Var name="RenameParameters" value="true" />',
-            '  <Var name="SuppressIldasm" value="true" />',
-            '  <Var name="HideStrings" value="true" />',
-            "  <Module file=`"$exePath`" />",
-            '</Obfuscator>'
-          )
+      #     # XML de configuración más completo
+      #     $xmlLines = @(
+      #       '<?xml version="1.0"?>',
+      #       '<Obfuscator>',
+      #       "  <Var name=`"InPath`" value=`"$binRelease`" />",
+      #       "  <Var name=`"OutPath`" value=`"$obfuscatedDir`" />",
+      #       '  <Var name="KeepPublicApi" value="false" />',
+      #       '  <Var name="HidePrivateApi" value="true" />',
+      #       '  <Var name="RenameProperties" value="true" />',
+      #       '  <Var name="RenameFields" value="true" />',
+      #       '  <Var name="RenameEvents" value="true" />',
+      #       '  <Var name="RenameParameters" value="true" />',
+      #       '  <Var name="SuppressIldasm" value="true" />',
+      #       '  <Var name="HideStrings" value="true" />',
+      #       "  <Module file=`"$exePath`" />",
+      #       '</Obfuscator>'
+      #     )
 
-          $configPath = Join-Path $projectDir "obfuscation.xml"
-          $xmlLines -join "`n" | Out-File -FilePath $configPath -Encoding UTF8
+      #     $configPath = Join-Path $projectDir "obfuscation.xml"
+      #     $xmlLines -join "`n" | Out-File -FilePath $configPath -Encoding UTF8
 
-          Write-Host "Iniciando ofuscación..."
-          & $obfuscarPath $configPath
+      #     Write-Host "Iniciando ofuscación..."
+      #     & $obfuscarPath $configPath
 
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Obfuscación falló con código $LASTEXITCODE"
-            exit 1
-          }
+      #     if ($LASTEXITCODE -ne 0) {
+      #       Write-Error "Obfuscación falló con código $LASTEXITCODE"
+      #       exit 1
+      #     }
 
-          Write-Host "Obfuscación completada exitosamente."
-          Start-Sleep -Seconds 2
+      #     Write-Host "Obfuscación completada exitosamente."
+      #     Start-Sleep -Seconds 2
 
-          $obfuscatedExe = Join-Path $obfuscatedDir "AFIFSALESSYSTEM.exe"
+      #     $obfuscatedExe = Join-Path $obfuscatedDir "AFIFSALESSYSTEM.exe"
 
-          if (Test-Path $obfuscatedExe) {
-            Write-Host "Reemplazando archivo original con versión ofuscada..."
+      #     if (Test-Path $obfuscatedExe) {
+      #       Write-Host "Reemplazando archivo original con versión ofuscada..."
 
-            # Reintentar eliminación del original si está bloqueado
-            for ($i = 1; $i -le 5; $i++) {
-              try {
-                if (Test-Path $exePath) {
-                  Remove-Item -Path $exePath -Force -ErrorAction Stop
-                }
-                break
-              } catch {
-                Write-Host "Archivo bloqueado, reintentando ($i/5)..."
-                Start-Sleep -Seconds 2
-              }
-            }
+      #       # Reintentar eliminación del original si está bloqueado
+      #       for ($i = 1; $i -le 5; $i++) {
+      #         try {
+      #           if (Test-Path $exePath) {
+      #             Remove-Item -Path $exePath -Force -ErrorAction Stop
+      #           }
+      #           break
+      #         } catch {
+      #           Write-Host "Archivo bloqueado, reintentando ($i/5)..."
+      #           Start-Sleep -Seconds 2
+      #         }
+      #       }
 
-            # Copiar versión ofuscada
-            Copy-Item -Path $obfuscatedExe -Destination $exePath -Force
-            Write-Host "Archivo ofuscado copiado a bin\\Release"
+      #       # Copiar versión ofuscada
+      #       Copy-Item -Path $obfuscatedExe -Destination $exePath -Force
+      #       Write-Host "Archivo ofuscado copiado a bin\\Release"
 
-            # Mostrar resultado final
-            Write-Host "Resultado final:"
-            Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | 
-              Select-Object Name, Length, LastWriteTime | Format-Table
+      #       # Mostrar resultado final
+      #       Write-Host "Resultado final:"
+      #       Get-ChildItem $binRelease -Filter "AFIFSALESSYSTEM.exe" | 
+      #         Select-Object Name, Length, LastWriteTime | Format-Table
 
-            # Limpiar carpeta temporal
-            # Remove-Item $obfuscatedDir -Recurse -Force
-          }
-          else {
-            Write-Error "No se encontró el archivo ofuscado en $obfuscatedDir"
-            exit 1
-          }
+      #       # Limpiar carpeta temporal
+      #       # Remove-Item $obfuscatedDir -Recurse -Force
+      #     }
+      #     else {
+      #       Write-Error "No se encontró el archivo ofuscado en $obfuscatedDir"
+      #       exit 1
+      #     }
 
-          Write-Host "Archivos finales en bin\\Release:"
-          Get-ChildItem $binRelease | Select-Object Name, Length | Format-Table
+      #     Write-Host "Archivos finales en bin\\Release:"
+      #     Get-ChildItem $binRelease | Select-Object Name, Length | Format-Table
 
       - name: Build and Publish ClickOnce
         shell: powershell
