@@ -1,57 +1,76 @@
-name: Detect Changes
+name: Check Multiple Path Changes
 
 on:
   workflow_call:
     inputs:
-      paths_to_check:
+      paths:
+        description: "Lista JSON o separada por comas de rutas a verificar"
         required: true
         type: string
-
+    outputs:
+      all_changed:
+        description: "True si todos los paths tienen cambios"
+        value: ${{ jobs.check-changes.outputs.all_changed }}
 
 jobs:
   check-changes:
-    runs-on:
-      group: DAST
-    strategy:
-      matrix: 
-        path: ${{ fromJson(inputs.paths_to_check) }}
+    runs-on: windows-latest
+    outputs:
+      all_changed: ${{ steps.check.outputs.all_changed }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
-      - name: Check for changes in both directories
-        id: check_changes
-        shell: pwsh  # Indica que el script debe ejecutarse en PowerShell
+      - name: Check changes dynamically
+        id: check
+        shell: pwsh
         run: |
-          # Asegúrate de obtener los commits correctos
+          # Obtener commits actuales
           $commitBefore = "${{ github.event.before }}"
           $commitCurrent = "${{ github.sha }}"
-          $pathToCheck = "${{ matrix.path }}[0]"
-          Write-Host "Commit Before: $pathToCheck"
 
-          # Verifica si los commits son válidos
           if (-not $commitBefore -or -not $commitCurrent) {
-            Write-Host "Invalid commit references. Exiting job."
-            exit 1
-          }
-
-          Write-Host "Checking differences between commits $commitBefore and $commitCurrent..."
-
-          # Obtén los cambios entre el commit actual y el commit anterior
-          $changesApi = git diff --name-only $commitBefore $commitCurrent | Where-Object { $_ -like 'DescopeSampleApp/Views/*' }
-          $changesWebsite = git diff --name-only $commitBefore $commitCurrent | Where-Object { $_ -like 'DescopeSampleApp/Controllers/*' }
-
-          Write-Host "API changes: $changesApi"
-          Write-Host "Website changes: $changesWebsite"
-
-          # Verifica si ambos directorios tienen cambios
-          if (-not $changesApi -or -not $changesWebsite) {
-            Write-Host "Not both directories have changes. Exiting job."
-            exit 1  # Sale sin ejecutar el resto del flujo si uno de los directorios no tiene cambios
-          } else {
-            Write-Host "Both directories have changes. Continuing job."
+            Write-Host "Commits inválidos, no se puede continuar."
+            echo "all_changed=false" >> $env:GITHUB_OUTPUT
             exit 0
           }
+
+          Write-Host "Comparando cambios entre $commitBefore y $commitCurrent..."
+          $changedFiles = git diff --name-only $commitBefore $commitCurrent
+          Write-Host "`nArchivos modificados:`n$changedFiles`n"
+
+          # Convertir el input en una lista (acepta JSON o CSV)
+          $rawInput = '${{ inputs.paths }}'
+          if ($rawInput.Trim().StartsWith('[')) {
+            $paths = ConvertFrom-Json $rawInput
+          } else {
+            $paths = $rawInput.Split(',') | ForEach-Object { $_.Trim() }
+          }
+
+          Write-Host "Paths a verificar:"
+          $paths | ForEach-Object { Write-Host " - $_" }
+
+          $allChanged = $true
+
+          foreach ($path in $paths) {
+            $pattern = $path -replace '\*\*','.*' -replace '\*','[^/\\]*'
+            $match = $changedFiles | Where-Object { $_ -match $pattern }
+
+            if (-not $match) {
+              Write-Host "No hubo cambios en: $path"
+              $allChanged = $false
+            } else {
+              Write-Host "Cambios detectados en: $path"
+            }
+          }
+
+          if ($allChanged) {
+            Write-Host "Todos los paths tuvieron cambios."
+          } else {
+            Write-Host "No todos los paths cambiaron."
+          }
+
+          echo "all_changed=$allChanged" >> $env:GITHUB_OUTPUT
