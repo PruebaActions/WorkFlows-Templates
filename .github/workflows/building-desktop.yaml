@@ -608,8 +608,12 @@ jobs:
           Write-Host "🔄 Combining runners and projects..."
 
           # Parsea directamente los inputs como JSON desde el contexto
-          $projects = (ConvertFrom-Json @'${{ inputs.projects_json }}'@).include
-          $runners  = (ConvertFrom-Json @'${{ inputs.runner_tag }}'@).include
+          $projects = (ConvertFrom-Json @'
+          ${{ inputs.projects_json }}
+          '@).include
+          $runners  = (ConvertFrom-Json @'
+          ${{ inputs.runner_tag }}
+          '@).include
 
           $combined = @()
           foreach ($runner in $runners) {
