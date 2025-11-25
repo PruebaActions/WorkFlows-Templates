@@ -595,60 +595,60 @@ jobs:
   #       with:
   #         deploy_target_path: ${{ matrix.deploy_target_path }}
 
-deploy_installers:
-  name: "🚀 Deploy Installers"
-  needs: build_clickonce
-  runs-on: ${{ matrix.runner.labels }}
-  strategy:
-    matrix:
-      include: ${{ fromJson(steps.combine.outputs.matrix_json) }}
-    max-parallel: 1
+  deploy_installers:
+    name: "🚀 Deploy Installers"
+    needs: build_clickonce
+    runs-on: ${{ matrix.runner.labels }}
+    strategy:
+      matrix:
+        include: ${{ fromJson(steps.combine.outputs.matrix_json) }}
+      max-parallel: 1
 
-  steps:
-    - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Combine runners and projects
-      id: combine
-      shell: pwsh
-      run: |
-        Write-Host "🔄 Combining runners and projects..."
-        $projects = @(${{
-          fromJson(inputs.projects_json).include
-        }})
-        $runners = @(${{
-          fromJson(inputs.runner_tag).include
-        }})
+      - name: Combine runners and projects
+        id: combine
+        shell: pwsh
+        run: |
+          Write-Host "🔄 Combining runners and projects..."
+          $projects = @(${{
+            fromJson(inputs.projects_json).include
+          }})
+          $runners = @(${{
+            fromJson(inputs.runner_tag).include
+          }})
 
-        $combined = @()
-        foreach ($runner in $runners) {
-          foreach ($proj in $projects) {
-            $combined += @{
-              project = $proj
-              runner = $runner
+          $combined = @()
+          foreach ($runner in $runners) {
+            foreach ($proj in $projects) {
+              $combined += @{
+                project = $proj
+                runner = $runner
+              }
             }
           }
-        }
 
-        $json = $combined | ConvertTo-Json -Compress
-        echo "matrix_json=$json" >> $env:GITHUB_OUTPUT
-        Write-Host "✅ Combined matrix:"
-        Write-Host $json
+          $json = $combined | ConvertTo-Json -Compress
+          echo "matrix_json=$json" >> $env:GITHUB_OUTPUT
+          Write-Host "✅ Combined matrix:"
+          Write-Host $json
 
-    - name: "Downloading artifacts"
-      uses: actions/download-artifact@v4
-      env:
-        NODE_TLS_REJECT_UNAUTHORIZED: '0'
-      with:
-        name: ${{ matrix.project.artifact_name }}
-        path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
+      - name: "Downloading artifacts"
+        uses: actions/download-artifact@v4
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: ${{ matrix.project.artifact_name }}
+          path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
 
-    - name: "Deploy to IIS"
-      uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
-      with:
-        project_name: ${{ matrix.project.project_name }}
-        publish_path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
-        destination_path: ${{ matrix.project.deploy_target_path }}
-        skip_items_json: ${{ inputs.skip_items_json }}
+      - name: "Deploy to IIS"
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
+        with:
+          project_name: ${{ matrix.project.project_name }}
+          publish_path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
+          destination_path: ${{ matrix.project.deploy_target_path }}
+          skip_items_json: ${{ inputs.skip_items_json }}
 
 
   # deploy_installers:
