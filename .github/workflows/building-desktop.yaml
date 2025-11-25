@@ -39,8 +39,7 @@ jobs:
           
   build_clickonce:
     name: "Modify Files & Build ClickOnce"
-    runs-on:
-        group: DAST
+    runs-on: [self-hosted, windows, x64, laptop]
     strategy:
       matrix: ${{ fromJson(inputs.project_compile_info_json) }}
       max-parallel: 1
