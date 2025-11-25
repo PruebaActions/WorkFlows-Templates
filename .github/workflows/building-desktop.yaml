@@ -601,7 +601,7 @@ jobs:
     strategy:
       matrix: 
         project: ${{ fromJson(inputs.projects_json).include }}
-        runner: ${{ fromJson(inputs.runner_tag) }}
+        runner: ${{ fromJson(inputs.runner_tag).include }}
       max-parallel: 1
     runs-on: ${{ matrix.runner.labels }}
     steps:
