@@ -583,44 +583,45 @@ jobs:
             ${{ steps.find_msi.outputs.releaseDir }}/*.msi
           if-no-files-found: error
 
-  # backup_installers:
-  #   name: "🗂️ Backup Installers"
-  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
-  #   needs: build_clickonce
-  #   strategy:
-  #     matrix: ${{ fromJson(inputs.projects_json) }}
-  #     max-parallel: 1
-  #   steps:
-  #     - name: "Prepare Backup Folder"
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@main
-  #       with:
-  #         deploy_target_path: ${{ matrix.deploy_target_path }}
+  backup_installers:
+    name: "🗂️ Backup Installers"
+    runs-on: ${{ fromJson(inputs.runner_tag) }}
+    needs: build_clickonce
+    strategy:
+      matrix: ${{ fromJson(inputs.projects_json) }}
+      max-parallel: 1
+    steps:
+      - name: "Prepare Backup Folder"
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@main
+        with:
+          deploy_target_path: ${{ matrix.deploy_target_path }}
 
-  # deploy_installers:
-  #   name: "🚀 Deploy Installers"
-  #   needs: backup_installers
-  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
-  #   strategy:
-  #     matrix: ${{ fromJson(inputs.projects_json) }}
-  #     max-parallel: 1
+  deploy_installers:
+    name: "🚀 Deploy Installers"
+    needs: backup_installers
+    strategy:
+      matrix: 
+        include: ${{ fromJson(inputs.projects_json).include }}
+        runner_tags: ${{ fromJson(inputs.runner_tag) }}
+      max-parallel: 1
+    runs-on: ${{ fromJson(matrix.runner_tags) }}
+    steps:
+      - uses: actions/checkout@v4
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+      - name: "Downloading artifacts"
+        uses: actions/download-artifact@v4
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: ${{ matrix.artifact_name}}
+          path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name}}
 
-  #     - name: "Downloading artifacts"
-  #       uses: actions/download-artifact@v4
-  #       env:
-  #         NODE_TLS_REJECT_UNAUTHORIZED: '0'
-  #       with:
-  #         name: ${{ matrix.artifact_name}}
-  #         path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name}}
-
-  #     - name: "Deploy to IIS"
-  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
-  #       with:
-  #         project_name: ${{ matrix.project_name }}
-  #         publish_path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name }}
-  #         destination_path: ${{ matrix.deploy_target_path }}
-  #         skip_items_json: ${{ inputs.skip_items_json }}
+      - name: "Deploy to IIS"
+        uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
+        with:
+          project_name: ${{ matrix.project_name }}
+          publish_path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name }}
+          destination_path: ${{ matrix.deploy_target_path }}
+          skip_items_json: ${{ inputs.skip_items_json }}
 
       
