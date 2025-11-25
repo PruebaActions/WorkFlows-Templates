@@ -596,37 +596,35 @@ jobs:
   #         deploy_target_path: ${{ matrix.deploy_target_path }}
 
   combine_matrix:
-    name: "🧩 Combine Matrix"
-    runs-on: ubuntu-latest
-    outputs:
-      matrix_json: ${{ steps.combine.outputs.matrix_json }}
-    steps:
-      - name: Combine runners and projects
-        id: combine
-        shell: pwsh
-        run: |
-          Write-Host "🔄 Combining runners and projects..."
-          $projects = @(${{
-            fromJson(inputs.projects_json).include
-          }})
-          $runners = @(${{
-            fromJson(inputs.runner_tag).include
-          }})
+  name: "🧩 Combine Matrix"
+  runs-on: ubuntu-latest
+  outputs:
+    matrix_json: ${{ steps.combine.outputs.matrix_json }}
+  steps:
+    - name: Combine runners and projects
+      id: combine
+      shell: pwsh
+      run: |
+        Write-Host "🔄 Combining runners and projects..."
 
-          $combined = @()
-          foreach ($runner in $runners) {
-            foreach ($proj in $projects) {
-              $combined += @{
-                project = $proj
-                runner = $runner
-              }
+        # Parsea directamente los inputs como JSON desde el contexto
+        $projects = (ConvertFrom-Json @'${{ inputs.projects_json }}'@).include
+        $runners  = (ConvertFrom-Json @'${{ inputs.runner_tag }}'@).include
+
+        $combined = @()
+        foreach ($runner in $runners) {
+          foreach ($proj in $projects) {
+            $combined += @{
+              project = $proj
+              runner  = $runner
             }
           }
+        }
 
-          $json = $combined | ConvertTo-Json -Compress
-          echo "matrix_json=$json" >> $env:GITHUB_OUTPUT
-          Write-Host "✅ Combined matrix:"
-          Write-Host $json
+        $json = $combined | ConvertTo-Json -Compress
+        echo "matrix_json=$json" >> $env:GITHUB_OUTPUT
+        Write-Host "✅ Combined matrix:"
+        Write-Host $json
 
   deploy_installers:
     name: "🚀 Deploy Installers"
