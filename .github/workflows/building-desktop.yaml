@@ -650,8 +650,17 @@ jobs:
       max-parallel: 1
     runs-on: ${{ matrix.runner.labels[*] }}
 
-    steps:
+    steps:    
     - uses: actions/checkout@v4
+    
+    - name: Debug - Show all variables
+      shell: pwsh
+      run: |
+        Write-Host "Runner index: ${{ matrix.runner_index }}"
+        Write-Host "Project index: ${{ matrix.project_index }}"
+        Write-Host "Runner labels: ${{ matrix.runner.labels }}"
+        Write-Host "Project name: ${{ matrix.project.project_name }}"
+        Write-Host "Target path: ${{ matrix.project.deploy_target_path }}"
 
     - name: "Debug - Show all variables"
       shell: powershell
