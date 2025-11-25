@@ -635,7 +635,7 @@ jobs:
           # Mantener el orden en la salida
           $combined = $combined | Sort-Object order
 
-          $json = $combined | ConvertTo-Json -Compress
+          $json = $combined | ConvertTo-Json -Compress -Depth 10
           echo "matrix_json=$json" >> $env:GITHUB_OUTPUT
 
           Write-Host "✅ Ordered combined matrix:"
