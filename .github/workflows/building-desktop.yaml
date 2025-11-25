@@ -622,6 +622,3 @@ jobs:
           publish_path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
           destination_path: ${{ matrix.project.deploy_target_path }}
           skip_items_json: ${{ inputs.skip_items_json }}
-
-      
-Es posible hacer algo como runs-on []
