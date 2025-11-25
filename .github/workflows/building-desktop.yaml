@@ -595,18 +595,12 @@ jobs:
   #       with:
   #         deploy_target_path: ${{ matrix.deploy_target_path }}
 
-  deploy_installers:
-    name: "🚀 Deploy Installers"
-    needs: build_clickonce
-    runs-on: ${{ matrix.runner.labels }}
-    strategy:
-      matrix:
-        include: ${{ fromJson(steps.combine.outputs.matrix_json) }}
-      max-parallel: 1
-
+  combine_matrix:
+    name: "🧩 Combine Matrix"
+    runs-on: ubuntu-latest
+    outputs:
+      matrix_json: ${{ steps.combine.outputs.matrix_json }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Combine runners and projects
         id: combine
         shell: pwsh
@@ -634,6 +628,18 @@ jobs:
           Write-Host "✅ Combined matrix:"
           Write-Host $json
 
+  deploy_installers:
+    name: "🚀 Deploy Installers"
+    needs: combine_matrix
+    runs-on: ${{ matrix.runner.labels }}
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.combine_matrix.outputs.matrix_json) }}
+      max-parallel: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
       - name: "Downloading artifacts"
         uses: actions/download-artifact@v4
         env:
@@ -649,7 +655,6 @@ jobs:
           publish_path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
           destination_path: ${{ matrix.project.deploy_target_path }}
           skip_items_json: ${{ inputs.skip_items_json }}
-
 
   # deploy_installers:
   #   name: "🚀 Deploy Installers"
