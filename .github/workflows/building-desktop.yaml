@@ -598,7 +598,7 @@ jobs:
 
   deploy_installers:
     name: "🚀 Deploy Installers"
-    #needs: backup_installers
+    needs: build_clickonce
     strategy:
       matrix: 
         include: ${{ fromJson(inputs.projects_json).include }}
