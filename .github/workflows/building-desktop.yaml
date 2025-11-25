@@ -583,18 +583,18 @@ jobs:
             ${{ steps.find_msi.outputs.releaseDir }}/*.msi
           if-no-files-found: error
 
-  backup_installers:
-    name: "🗂️ Backup Installers"
-    runs-on: ${{ fromJson(inputs.runner_tag) }}
-    needs: build_clickonce
-    strategy:
-      matrix: ${{ fromJson(inputs.projects_json) }}
-      max-parallel: 1
-    steps:
-      - name: "Prepare Backup Folder"
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@main
-        with:
-          deploy_target_path: ${{ matrix.deploy_target_path }}
+  # backup_installers:
+  #   name: "🗂️ Backup Installers"
+  #   runs-on: ${{ fromJson(inputs.runner_tag) }}
+  #   needs: build_clickonce
+  #   strategy:
+  #     matrix: ${{ fromJson(inputs.projects_json) }}
+  #     max-parallel: 1
+  #   steps:
+  #     - name: "Prepare Backup Folder"
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/create-backup@main
+  #       with:
+  #         deploy_target_path: ${{ matrix.deploy_target_path }}
 
   deploy_installers:
     name: "🚀 Deploy Installers"
