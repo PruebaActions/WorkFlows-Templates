@@ -603,7 +603,7 @@ jobs:
         project: ${{ fromJson(inputs.projects_json).include }}
         runner: ${{ fromJson(inputs.runner_tag) }}
       max-parallel: 1
-    runs-on: ${{ fromJson(matrix.runner.labels) }}
+    runs-on: ${{ matrix.runner.labels }}
     steps:
       - uses: actions/checkout@v4
 
