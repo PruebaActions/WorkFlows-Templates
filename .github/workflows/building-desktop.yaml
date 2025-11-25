@@ -652,9 +652,9 @@ jobs:
 
     steps:    
     - uses: actions/checkout@v4
-    
+
     - name: Debug - Show all variables
-      shell: pwsh
+      shell: powershell
       run: |
         Write-Host "Runner index: ${{ matrix.runner_index }}"
         Write-Host "Project index: ${{ matrix.project_index }}"
