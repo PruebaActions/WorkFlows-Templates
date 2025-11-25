@@ -640,23 +640,87 @@ jobs:
     runs-on: ${{ matrix.runner.labels[*] }}
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: "Downloading artifacts"
-        uses: actions/download-artifact@v4
-        env:
-          NODE_TLS_REJECT_UNAUTHORIZED: '0'
-        with:
-          name: ${{ matrix.project.artifact_name }}
-          path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
+    - name: "Debug - Show all variables"
+      shell: powershell
+      run: |
+        Write-Host "=========================================="
+        Write-Host "           DEPLOYMENT VARIABLES          "
+        Write-Host "=========================================="
+        Write-Host ""
+        
+        Write-Host "📦 PROJECT INFORMATION:"
+        Write-Host "  Project Name:        ${{ matrix.project.project_name }}"
+        Write-Host "  Artifact Name:       ${{ matrix.project.artifact_name }}"
+        Write-Host ""
+        
+        Write-Host "📂 PATHS:"
+        Write-Host "  GitHub Workspace:    ${{ github.workspace }}"
+        Write-Host "  Publish Path:        ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}"
+        Write-Host "  Destination Path:    ${{ matrix.project.deploy_target_path }}"
+        Write-Host ""
+        
+        Write-Host "⚙️ CONFIGURATION:"
+        Write-Host "  Skip Items JSON:     ${{ inputs.skip_items_json }}"
+        Write-Host ""
+        
+        Write-Host "🔍 GITHUB CONTEXT:"
+        Write-Host "  Repository:          ${{ github.repository }}"
+        Write-Host "  Branch:              ${{ github.ref_name }}"
+        Write-Host "  Commit SHA:          ${{ github.sha }}"
+        Write-Host "  Actor:               ${{ github.actor }}"
+        Write-Host "  Run Number:          ${{ github.run_number }}"
+        Write-Host ""
+        
+        Write-Host "=========================================="
+        Write-Host ""
+        
+        # Verificar que los directorios existen
+        Write-Host "📋 VERIFICATION:"
+        
+        $artifactPath = "${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}"
+        if (Test-Path $artifactPath) {
+          Write-Host "  ✅ Artifact path exists: $artifactPath"
+          Write-Host "  Files in artifact:"
+          Get-ChildItem $artifactPath -Recurse | Select-Object -First 10 | ForEach-Object {
+            Write-Host "     - $($_.Name)"
+          }
+        } else {
+          Write-Host "  ❌ Artifact path NOT found: $artifactPath"
+        }
+        
+        Write-Host ""
+        
+        $destPath = "${{ matrix.project.deploy_target_path }}"
+        if (Test-Path $destPath) {
+          Write-Host "  ✅ Destination path exists: $destPath"
+        } else {
+          Write-Host "  ⚠️  Destination path does NOT exist: $destPath"
+          Write-Host "     (Will be created during deployment)"
+        }
+        
+        Write-Host ""
+        Write-Host "=========================================="
 
-      - name: "Deploy to IIS"
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
-        with:
-          project_name: ${{ matrix.project.project_name }}
-          publish_path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
-          destination_path: ${{ matrix.project.deploy_target_path }}
-          skip_items_json: ${{ inputs.skip_items_json }}
+    # steps:
+    #   - uses: actions/checkout@v4
+
+    #   - name: "Downloading artifacts"
+    #     uses: actions/download-artifact@v4
+    #     env:
+    #       NODE_TLS_REJECT_UNAUTHORIZED: '0'
+    #     with:
+    #       name: ${{ matrix.project.artifact_name }}
+    #       path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
+
+    #   - name: "Deploy to IIS"
+    #     uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
+    #     with:
+    #       project_name: ${{ matrix.project.project_name }}
+    #       publish_path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
+    #       destination_path: ${{ matrix.project.deploy_target_path }}
+    #       skip_items_json: ${{ inputs.skip_items_json }}
 
   # deploy_installers:
   #   name: "🚀 Deploy Installers"
