@@ -633,11 +633,11 @@ jobs:
   deploy_installers:
     name: "🚀 Deploy Installers"
     needs: combine_matrix
-    runs-on: ${{ matrix.runner.labels }}
     strategy:
       matrix:
         include: ${{ fromJson(needs.combine_matrix.outputs.matrix_json) }}
       max-parallel: 1
+    runs-on: ${{ matrix.runner.labels[*] }}
 
     steps:
       - uses: actions/checkout@v4
