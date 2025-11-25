@@ -600,10 +600,10 @@ jobs:
     needs: build_clickonce
     strategy:
       matrix: 
-        include: ${{ fromJson(inputs.projects_json).include }}
-        runner_tags: ${{ fromJson(inputs.runner_tag) }}
+        project: ${{ fromJson(inputs.projects_json).include }}
+        runner: ${{ fromJson(inputs.runner_tag) }}
       max-parallel: 1
-    runs-on: ${{ fromJson(matrix.runner_tags) }}
+    runs-on: ${{ fromJson(matrix.runner) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -618,9 +618,10 @@ jobs:
       - name: "Deploy to IIS"
         uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
         with:
-          project_name: ${{ matrix.project_name }}
-          publish_path: ${{ github.workspace }}/artifact/${{ matrix.artifact_name }}
-          destination_path: ${{ matrix.deploy_target_path }}
+          project_name: ${{ matrix.project.project_name }}
+          publish_path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
+          destination_path: ${{ matrix.project.deploy_target_path }}
           skip_items_json: ${{ inputs.skip_items_json }}
 
       
+Es posible hacer algo como runs-on []
