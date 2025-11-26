@@ -277,10 +277,6 @@ jobs:
             /t:Publish `
             /p:Configuration='Release' `
             /p:Platform='Any CPU' `
-            # /p:PublishDir='${{ matrix.publishDir }}' `
-            # /p:InstallUrl='${{ matrix.installUrl }}' `
-            # /p:ApplicationVersion="$appVersion" `
-            # /p:MinimumRequiredVersion="$appVersion" `
             /p:OutputPath='bin\Release' `
             /p:BuildProject=false `
             /v:minimal 
@@ -290,6 +286,10 @@ jobs:
             # /p:ManifestCertificateStoreName="My" `
             # /p:ManifestCertificateSubjectName="$subject" `
             # /p:ManifestCertificateThumbprint="$thumbprint" `
+            # /p:PublishDir='${{ matrix.publishDir }}' `
+            # /p:InstallUrl='${{ matrix.installUrl }}' `
+            # /p:ApplicationVersion="$appVersion" `
+            # /p:MinimumRequiredVersion="$appVersion" `
             
       - name: Generate custom publish.htm
         shell: pwsh
