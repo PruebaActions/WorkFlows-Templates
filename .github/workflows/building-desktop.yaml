@@ -277,7 +277,7 @@ jobs:
             /t:Publish `
             /p:Configuration='Release' `
             /p:Platform='Any CPU' `
-            /p:OutputPath='bin\Release' `
+            /p:OutputPath='bin\Release1' `
             /p:BuildProject=false `
             /v:minimal 
             # /p:SignManifests=true `
