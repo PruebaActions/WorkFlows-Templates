@@ -274,13 +274,13 @@ jobs:
           Write-Host "Building ClickOnce package with version $appVersion"
 
           msbuild '${{ matrix.project_path }}' `
-            /t:GenerateBootstrapper `
+            /t:Publish `
             /p:Configuration='Release' `
             /p:Platform='Any CPU' `
-            /p:PublishDir='${{ matrix.publishDir }}' `
-            /p:InstallUrl='${{ matrix.installUrl }}' `
-            /p:ApplicationVersion="$appVersion" `
-            /p:MinimumRequiredVersion="$appVersion" `
+            # /p:PublishDir='${{ matrix.publishDir }}' `
+            # /p:InstallUrl='${{ matrix.installUrl }}' `
+            # /p:ApplicationVersion="$appVersion" `
+            # /p:MinimumRequiredVersion="$appVersion" `
             /p:OutputPath='bin\Release' `
             /p:BuildProject=false `
             /v:minimal 
