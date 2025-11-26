@@ -449,95 +449,95 @@ jobs:
           Write-Host "✅ Custom publish.htm generated at: $outputFile"
 
 
-  #     - name: Update MSI Version and GUIDs
-  #       shell: pwsh
-  #       run: |
-  #         $vdprojPath = '${{ matrix.msi_project_path }}'
-  #         $fullVersion = '${{ steps.version.outputs.appVersion }}'
+      - name: Update MSI Version and GUIDs
+        shell: pwsh
+        run: |
+          $vdprojPath = '${{ matrix.msi_project_path }}'
+          $fullVersion = '${{ steps.version.outputs.appVersion }}'
 
-  #         if (-not (Test-Path $vdprojPath)) {
-  #           Write-Error "❌ No se encontró el archivo .vdproj en la ruta $vdprojPath"
-  #           exit 1
-  #         }
+          if (-not (Test-Path $vdprojPath)) {
+            Write-Error "❌ No se encontró el archivo .vdproj en la ruta $vdprojPath"
+            exit 1
+          }
 
-  #         Write-Host "🔍 Actualizando versión del MSI usando: $fullVersion"
+          Write-Host "🔍 Actualizando versión del MSI usando: $fullVersion"
 
-  #         # Extraer partes de la versión completa (YYYY.MM.DD.RUN)
-  #         $parts = $fullVersion -split '\.'
-  #         if ($parts.Length -lt 3) {
-  #           Write-Error "⚠️ Formato de versión inesperado: $fullVersion"
-  #           exit 1
-  #         }
+          # Extraer partes de la versión completa (YYYY.MM.DD.RUN)
+          $parts = $fullVersion -split '\.'
+          if ($parts.Length -lt 3) {
+            Write-Error "⚠️ Formato de versión inesperado: $fullVersion"
+            exit 1
+          }
 
-  #         $shortYear = $parts[0][-2..-1] -join ''   # "25"
-  #         $month = $parts[1].PadLeft(2, '0')        # "11"
+          $shortYear = $parts[0][-2..-1] -join ''   # "25"
+          $month = $parts[1].PadLeft(2, '0')        # "11"
 
-  #         $dayInt = [int]$parts[2]                  # Día (ej: 20)
-  #         $runInt = if ($parts.Length -ge 4) { [int]$parts[3] } else { 1 }
+          $dayInt = [int]$parts[2]                  # Día (ej: 20)
+          $runInt = if ($parts.Length -ge 4) { [int]$parts[3] } else { 1 }
 
-  #         # Cálculo del bloque final (día * 10 + corrida)
-  #         # Ejemplo: día=20, corrida=1 → 201
-  #         $numericLastBlock = ($dayInt * 10) + $runInt
-  #         if ($numericLastBlock -gt 999) {
-  #           Write-Error "🚨 El bloque final del ProductVersion excede el límite (999). Valor: $numericLastBlock"
-  #           exit 1
-  #         }
+          # Cálculo del bloque final (día * 10 + corrida)
+          # Ejemplo: día=20, corrida=1 → 201
+          $numericLastBlock = ($dayInt * 10) + $runInt
+          if ($numericLastBlock -gt 999) {
+            Write-Error "🚨 El bloque final del ProductVersion excede el límite (999). Valor: $numericLastBlock"
+            exit 1
+          }
 
-  #         $lastBlock = "{0:D3}" -f $numericLastBlock
-  #         $newVersion = "$shortYear.$month.$lastBlock"
+          $lastBlock = "{0:D3}" -f $numericLastBlock
+          $newVersion = "$shortYear.$month.$lastBlock"
 
-  #         Write-Host "🧩 Nueva versión MSI: $newVersion"
+          Write-Host "🧩 Nueva versión MSI: $newVersion"
 
-  #         # Generar nuevos GUIDs
-  #         $newProductCode = [guid]::NewGuid().ToString().ToUpper()
-  #         $newPackageCode = [guid]::NewGuid().ToString().ToUpper()
+          # Generar nuevos GUIDs
+          $newProductCode = [guid]::NewGuid().ToString().ToUpper()
+          $newPackageCode = [guid]::NewGuid().ToString().ToUpper()
 
-  #         Write-Host "🆕 ProductCode: {$newProductCode}"
-  #         Write-Host "🆕 PackageCode: {$newPackageCode}"
+          Write-Host "🆕 ProductCode: {$newProductCode}"
+          Write-Host "🆕 PackageCode: {$newPackageCode}"
 
-  #         # Leer y reemplazar en el archivo .vdproj
-  #         $content = Get-Content $vdprojPath -Raw
+          # Leer y reemplazar en el archivo .vdproj
+          $content = Get-Content $vdprojPath -Raw
 
-  #         $content = $content -replace '"ProductVersion" = "8:[^"]+"', "`"ProductVersion`" = `"8:$newVersion`""
-  #         $content = $content -replace '"ProductCode" = "8:{[^}]+}"', "`"ProductCode`" = `"8:{$newProductCode}`""
-  #         $content = $content -replace '"PackageCode" = "8:{[^}]+}"', "`"PackageCode`" = `"8:{$newPackageCode}`""
+          $content = $content -replace '"ProductVersion" = "8:[^"]+"', "`"ProductVersion`" = `"8:$newVersion`""
+          $content = $content -replace '"ProductCode" = "8:{[^}]+}"', "`"ProductCode`" = `"8:{$newProductCode}`""
+          $content = $content -replace '"PackageCode" = "8:{[^}]+}"', "`"PackageCode`" = `"8:{$newPackageCode}`""
 
-  #         $content | Set-Content $vdprojPath -Encoding UTF8
+          $content | Set-Content $vdprojPath -Encoding UTF8
 
-  #         Write-Host "✅ Archivo .vdproj actualizado correctamente"
-  #         Write-Host "📦 ProductVersion: $newVersion"
-  #         Write-Host "🧱 ProductCode y PackageCode regenerados"
+          Write-Host "✅ Archivo .vdproj actualizado correctamente"
+          Write-Host "📦 ProductVersion: $newVersion"
+          Write-Host "🧱 ProductCode y PackageCode regenerados"
 
 
-  #     - name: Build MSI Installer
-  #       shell: powershell
-  #       run: |
-  #         # Ruta absoluta al devenv.com (necesario para buildear .vdproj)
-  #         $devenv = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com"
+      - name: Build MSI Installer
+        shell: powershell
+        run: |
+          # Ruta absoluta al devenv.com (necesario para buildear .vdproj)
+          $devenv = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com"
 
-  #         if (-not (Test-Path $devenv)) {
-  #           Write-Error "Visual Studio 2022 Community con Installer Projects no está instalado."
-  #           exit 1
-  #         }
+          if (-not (Test-Path $devenv)) {
+            Write-Error "Visual Studio 2022 Community con Installer Projects no está instalado."
+            exit 1
+          }
 
-  #         # Rutas
-  #         $slnPath = (Resolve-Path "${{ matrix.sln_path }}").Path
-  #         $msiPath = (Resolve-Path "${{ matrix.msi_project_path }}").Path
-  #         $outputDir = "C:\test\msi"
+          # Rutas
+          $slnPath = (Resolve-Path "${{ matrix.sln_path }}").Path
+          $msiPath = (Resolve-Path "${{ matrix.msi_project_path }}").Path
+          $outputDir = "C:\test\msi"
 
-  #         Write-Host "Building MSI from $projectPath"
-  #         New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+          Write-Host "Building MSI from $projectPath"
+          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 
-  #         # Ejecutar build del proyecto MSI
-  #         & "$devenv" "$slnPath" /Build "Release" /Project $msiPath
+          # Ejecutar build del proyecto MSI
+          & "$devenv" "$slnPath" /Build "Release" /Project $msiPath
 
-  #         if ($LASTEXITCODE -ne 0) {
-  #           Write-Error "MSI build failed."
-  #           exit 1
-  #         }
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "MSI build failed."
+            exit 1
+          }
 
-  #         Write-Host "MSI successfully built. Contents:"
-  #         Get-ChildItem -Path $outputDir -Filter *.msi -Recurse | Select-Object FullName
+          Write-Host "MSI successfully built. Contents:"
+          Get-ChildItem -Path $outputDir -Filter *.msi -Recurse | Select-Object FullName
             
   #     - name: Upload ClickOnce artifact
   #       uses: actions/upload-artifact@v4
