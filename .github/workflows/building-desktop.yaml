@@ -22,20 +22,20 @@ on:
         type: string
 
 jobs:
-  sql_checkout:
-    name: "Checkout SQL branch and list files"
-    runs-on:
-      group: SQL-Runner
-    steps:
-      - name: Checkout Sql branch
-        uses: actions/checkout@v4
-        with:
-          ref: Sql
+  # sql_checkout:
+  #   name: "Checkout SQL branch and list files"
+  #   runs-on:
+  #     group: SQL-Runner
+  #   steps:
+  #     - name: Checkout Sql branch
+  #       uses: actions/checkout@v4
+  #       with:
+  #         ref: Sql
 
-      - name: List files in Sql branch
-        shell: powershell
-        run: |
-          sqlcmd -S localhost -Q "USE AFIFSALESUVC; SELECT * FROM dbo.SurveySections;"
+  #     - name: List files in Sql branch
+  #       shell: powershell
+  #       run: |
+  #         sqlcmd -S localhost -Q "USE AFIFSALESUVC; SELECT * FROM dbo.SurveySections;"
           
   build_clickonce:
     name: "Modify Files & Build ClickOnce"
