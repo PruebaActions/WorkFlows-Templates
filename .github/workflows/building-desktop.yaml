@@ -138,6 +138,10 @@ jobs:
             /p:PublishUrl="" `
             /p:Install=false `
             /p:InstallFrom=Web `
+            /p:PublishDir='${{ matrix.publishDir }}' `
+            /p:InstallUrl='${{ matrix.installUrl }}' `
+            /p:ApplicationVersion="$appVersion" `
+            /p:MinimumRequiredVersion="$appVersion" `
             /v:minimal
           
           Write-Host "Build completed"
@@ -277,7 +281,11 @@ jobs:
             /t:Publish `
             /p:Configuration='Release' `
             /p:Platform='Any CPU' `
-            /p:OutputPath='bin\Release1' `
+            /p:PublishDir='${{ matrix.publishDir }}' `
+            /p:InstallUrl='${{ matrix.installUrl }}' `
+            /p:ApplicationVersion="$appVersion" `
+            /p:MinimumRequiredVersion="$appVersion" `
+            /p:OutputPath='bin\Release' `
             /p:BuildProject=false `
             /v:minimal 
             # /p:SignManifests=true `
@@ -286,10 +294,6 @@ jobs:
             # /p:ManifestCertificateStoreName="My" `
             # /p:ManifestCertificateSubjectName="$subject" `
             # /p:ManifestCertificateThumbprint="$thumbprint" `
-            # /p:PublishDir='${{ matrix.publishDir }}' `
-            # /p:InstallUrl='${{ matrix.installUrl }}' `
-            # /p:ApplicationVersion="$appVersion" `
-            # /p:MinimumRequiredVersion="$appVersion" `
             
       - name: Generate custom publish.htm
         shell: pwsh
