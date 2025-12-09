@@ -280,7 +280,7 @@ jobs:
           msbuild '${{ matrix.project_path }}' `
             /t:Publish `
             /p:Configuration='Release' `
-            /p:Platform='Any CPU' `
+            /p:Platform='x64' `
             /p:PublishDir='${{ matrix.publishDir }}' `
             /p:InstallUrl='${{ matrix.installUrl }}' `
             /p:ApplicationVersion="$appVersion" `
