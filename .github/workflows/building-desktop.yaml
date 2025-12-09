@@ -133,7 +133,7 @@ jobs:
           msbuild '${{ matrix.project_path }}' `
             /t:Build `
             /p:Configuration=Release `
-            /p:Platform="x64 `
+            /p:Platform="x64" `
             /p:OutputPath=bin\Release `
             /p:PublishUrl="" `
             /p:Install=false `
