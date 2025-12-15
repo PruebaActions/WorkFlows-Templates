@@ -85,42 +85,42 @@ jobs:
           # Exporta la variable al pipeline
           echo "appVersion=$version" >> $env:GITHUB_OUTPUT
 
-      # - name: Replace App.config
-      #   shell: powershell
-      #   run: |
-      #     $source = "${{ matrix.appConfigPath }}"
-      #     $destination = "${{ matrix.dest_appConfig_path }}"
+      - name: Replace App.config
+        shell: powershell
+        run: |
+          $source = "${{ matrix.appConfigPath }}"
+          $destination = "${{ matrix.dest_appConfig_path }}"
 
-      #     if (Test-Path $source) {
-      #       Write-Host "Replacing App.config with $source"
-      #       Copy-Item -Path $source -Destination $destination -Force
-      #     } else {
-      #       Write-Error "App.config not found: $source"
-      #       exit 1
-      #     }
+          if (Test-Path $source) {
+            Write-Host "Replacing App.config with $source"
+            Copy-Item -Path $source -Destination $destination -Force
+          } else {
+            Write-Error "App.config not found: $source"
+            exit 1
+          }
 
-      # - name: Update AssemblyInfo version
-      #   shell: powershell
-      #   run: |
-      #     $assemblyInfo = "${{ matrix.assemblyInfo_path }}"
-      #     $assemblyVersion = "${{ matrix.assemblyVersion }}"
-      #     $appVersion = "${{ steps.version.outputs.appVersion }}"
-      #     Write-Host "Updating AssemblyVersion to $assemblyVersion"
-      #     Write-Host "Updating FileVersion to $appVersion"
+      - name: Update AssemblyInfo version
+        shell: powershell
+        run: |
+          $assemblyInfo = "${{ matrix.assemblyInfo_path }}"
+          $assemblyVersion = "${{ matrix.assemblyVersion }}"
+          $appVersion = "${{ steps.version.outputs.appVersion }}"
+          Write-Host "Updating AssemblyVersion to $assemblyVersion"
+          Write-Host "Updating FileVersion to $appVersion"
 
-      #     (Get-Content $assemblyInfo) |
-      #       ForEach-Object {
-      #         $_ -replace 'AssemblyVersion\(".*"\)', "AssemblyVersion(`"$assemblyVersion`")" `
-      #            -replace 'AssemblyFileVersion\(".*"\)', "AssemblyFileVersion(`"$appVersion`")"
-      #       } | Set-Content $assemblyInfo
+          (Get-Content $assemblyInfo) |
+            ForEach-Object {
+              $_ -replace 'AssemblyVersion\(".*"\)', "AssemblyVersion(`"$assemblyVersion`")" `
+                 -replace 'AssemblyFileVersion\(".*"\)', "AssemblyFileVersion(`"$appVersion`")"
+            } | Set-Content $assemblyInfo
 
-      # - name: Validate publish directory
-      #   shell: powershell
-      #   run: |
-      #     if (-not (Test-Path "${{ matrix.publishDir }}")) {
-      #       Write-Host "Creating publish directory..."
-      #       New-Item -ItemType Directory -Force -Path "${{ matrix.publishDir }}"
-      #     }
+      - name: Validate publish directory
+        shell: powershell
+        run: |
+          if (-not (Test-Path "${{ matrix.publishDir }}")) {
+            Write-Host "Creating publish directory..."
+            New-Item -ItemType Directory -Force -Path "${{ matrix.publishDir }}"
+          }
 
       - name: Restore NuGet packages
         run: dotnet restore "${{ matrix.sln_path }}"
@@ -315,20 +315,50 @@ jobs:
           $framework = ($propertyGroups.TargetFrameworkVersion | Where-Object { $_ })
           if (-not $framework) { $framework = "v4.5.2" }
 
-          # Formatear requisito visible
-          $frameworkDisplay = switch -Regex ($framework) {
-            "v4.5"   { "Microsoft .NET Framework 4.5 (x86 and x64)" }
-            "v4.5.2" { "Microsoft .NET Framework 4.5.2 (x86 and x64)" }
-            "v4.6"   { "Microsoft .NET Framework 4.6 (x86 and x64)" }
-            "v4.7"   { "Microsoft .NET Framework 4.7 (x86 and x64)" }
-            "v4.8"   { "Microsoft .NET Framework 4.8 (x86 and x64)" }
-            default  { "Microsoft .NET Framework (x86 and x64)" }
-          }
-
           Write-Host "📦 App Name: $appName"
           Write-Host "🏢 Publisher: $publisher"
           Write-Host "🧩 Version: $version"
-          Write-Host "🧱 Framework: $frameworkDisplay"
+          Write-Host "🧱 Framework: $framework"
+
+          # 🔹 Extraer BootstrapperPackages del .csproj
+          $bootstrapperPackages = $proj.Project.ItemGroup.BootstrapperPackage
+          $prerequisites = @()
+
+          if ($bootstrapperPackages) {
+            foreach ($package in $bootstrapperPackages) {
+              $install = $package.Install
+              # Solo incluir paquetes con Install="true"
+              if ($install -eq "true") {
+                $productName = $package.ProductName
+                if ($productName) {
+                  # Decodificar HTML entities si existen (e.g., %28 -> (, %29 -> ))
+                  $productName = [System.Web.HttpUtility]::HtmlDecode($productName)
+                  $prerequisites += $productName
+                  Write-Host "✅ Prerequisite found: $productName"
+                }
+              }
+            }
+          }
+
+          # Si no hay bootstrapper packages, usar el framework como fallback
+          if ($prerequisites.Count -eq 0) {
+            $frameworkDisplay = switch -Regex ($framework) {
+              "v4.5"   { "Microsoft .NET Framework 4.5 (x86 and x64)" }
+              "v4.5.2" { "Microsoft .NET Framework 4.5.2 (x86 and x64)" }
+              "v4.6"   { "Microsoft .NET Framework 4.6 (x86 and x64)" }
+              "v4.7"   { "Microsoft .NET Framework 4.7 (x86 and x64)" }
+              "v4.7.2" { "Microsoft .NET Framework 4.7.2 (x86 and x64)" }
+              "v4.8"   { "Microsoft .NET Framework 4.8 (x86 and x64)" }
+              default  { "Microsoft .NET Framework (x86 and x64)" }
+            }
+            $prerequisites += $frameworkDisplay
+            Write-Host "⚠️ No bootstrapper packages found, using framework: $frameworkDisplay"
+          }
+
+          # Generar lista HTML de prerequisitos
+          $prerequisitesHtml = ($prerequisites | ForEach-Object { "<LI>$_</LI>" }) -join "`n"
+
+          Write-Host "📋 Prerequisites HTML generated"
 
           # Asegurar directorio de publicación
           if (-not (Test-Path $publishDir)) {
@@ -395,7 +425,7 @@ jobs:
 
           </HEAD>
             <BODY ONLOAD="Initialize()">
-              <TABLE WIDTH="100%" CELLPADDING="0" CELLSPACING="2" BORDER="0">
+              <TABLE WIDTH="100%" CELLPADDING="0" CELLSPACING="0" BORDER="0">
 
           <!-- Begin Banner -->
           <TR><TD><TABLE CELLPADDING="2" CELLSPACING="0" BORDER="0" BGCOLOR="#cecece" WIDTH="100%"><TR><TD><TABLE BGCOLOR="#1c5280" WIDTH="100%" CELLPADDING="0" CELLSPACING="0" BORDER="0"><TR><TD CLASS="Banner" /></TR><TR><TD CLASS="Banner"><SPAN CLASS="BannerTextCompany">${publisher}</SPAN></TD></TR><TR><TD CLASS="Banner"><SPAN CLASS="BannerTextApplication">${appName}</SPAN></TD></TR><TR><TD CLASS="Banner" ALIGN="RIGHT" /></TR></TABLE></TD></TR></TABLE></TD></TR>
@@ -409,15 +439,13 @@ jobs:
           <TABLE><TR><TD COLSPAN="3">&nbsp;</TD></TR><TR><TD><B>Name:</B></TD><TD WIDTH="5"><SPACER TYPE="block" WIDTH="10" /></TD><TD>${appName}</TD></TR><TR><TD COLSPAN="3">&nbsp;</TD></TR><TR><TD><B>Version:</B></TD><TD WIDTH="5"><SPACER TYPE="block" WIDTH="10" /></TD><TD>${version}</TD></TR><TR><TD COLSPAN="3">&nbsp;</TD></TR><TR><TD><B>Publisher:</B></TD><TD WIDTH="5"><SPACER TYPE="block" WIDTH="10" /></TD><TD>${publisher}</TD></TR><tr><td colspan="3">&nbsp;</td></tr></TABLE>
           <!-- End AppInfo -->
 
-
           <!-- Begin Prerequisites -->
           <TABLE ID="BootstrapperSection" BORDER="0"><TR><TD COLSPAN="2">The following prerequisites are required:</TD></TR><TR><TD WIDTH="10">&nbsp;</TD><TD><UL>
-          <LI>${frameworkDisplay}</LI>
+          ${prerequisitesHtml}
           </UL></TD></TR><TR><TD COLSPAN="2">
           If these components are already installed, you can <SPAN CLASS="JustThisApp"><A HREF="${appName}.application">launch</A></SPAN> the application now. Otherwise, click the button below to install the prerequisites and run the application.
           </TD></TR><TR><TD COLSPAN="2">&nbsp;</TD></TR></TABLE>
           <!-- End Prerequisites -->
-
 
           </TD></TR></TABLE>
           <!-- Begin Buttons -->
@@ -425,8 +453,6 @@ jobs:
           <!-- End Buttons -->
           </TD></TR>
           <!-- End Dialog -->
-
-
 
           <!-- Spacer Row -->
           <TR><TD>&nbsp;</TD></TR>
