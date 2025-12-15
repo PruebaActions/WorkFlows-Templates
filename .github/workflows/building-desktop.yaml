@@ -190,18 +190,18 @@ jobs:
           $projectDir = Split-Path $projectPath -Parent
           
           # Usar las mismas rutas que el IDE
-          $inPath = Join-Path $projectDir "obj\Release"
+          $inPath = Join-Path $projectDir "bin\Release"
           $outPath = Join-Path $inPath "Out"
           
           Write-Host "Project Dir: $projectDir"
           Write-Host "InPath: $inPath"
           Write-Host "OutPath: $outPath"
           
-          # Verificar que existe el ejecutable en obj\Release
+          # Verificar que existe el ejecutable en bin\Release
           $exePath = Join-Path $inPath "AFIFSALESSYSTEM.exe"
           if (-not (Test-Path $exePath)) {
             Write-Error "No se encontró AFIFSALESSYSTEM.exe en $inPath"
-            Write-Host "Contenido de obj\Release:"
+            Write-Host "Contenido de bin\Release:"
             Get-ChildItem $inPath -ErrorAction SilentlyContinue | Select-Object Name | Format-Table
             exit 1
           }
@@ -252,8 +252,8 @@ jobs:
           $mainConfigContent = @"
           <?xml version="1.0" encoding="utf-8"?>
           <Obfuscator>
-            <Var name="InPath" value="obj\Release\" />
-            <Var name="OutPath" value="obj\Release\Out" />
+            <Var name="InPath" value="bin\Release\" />
+            <Var name="OutPath" value="bin\Release\Out" />
             <Include path="_Obfuscar\obfuscar.xml" />
           </Obfuscator>
           "@
