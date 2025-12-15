@@ -147,175 +147,175 @@ jobs:
       - name: Restore NuGet packages
         run: dotnet restore "${{ matrix.sln_path }}"
       
-      - name: Build Project (without publish)
-        shell: powershell
-        run: |
-          Write-Host "Building project without publishing..."
+      # - name: Build Project (without publish)
+      #   shell: powershell
+      #   run: |
+      #     Write-Host "Building project without publishing..."
           
-          msbuild '${{ matrix.project_path }}' `
-            /t:Build `
-            /p:Configuration=Release `
-            /p:Platform="x64" `
-            /p:OutputPath=bin\Release `
-            /p:PublishUrl="" `
-            /p:Install=false `
-            /p:InstallFrom=Web `
-            /p:PublishDir='${{ matrix.publishDir }}' `
-            /p:InstallUrl='${{ matrix.installUrl }}' `
-            /p:ApplicationVersion="$appVersion" `
-            /p:MinimumRequiredVersion="$appVersion" `
-            /v:minimal
+      #     msbuild '${{ matrix.project_path }}' `
+      #       /t:Build `
+      #       /p:Configuration=Release `
+      #       /p:Platform="x64" `
+      #       /p:OutputPath=bin\Release `
+      #       /p:PublishUrl="" `
+      #       /p:Install=false `
+      #       /p:InstallFrom=Web `
+      #       /p:PublishDir='${{ matrix.publishDir }}' `
+      #       /p:InstallUrl='${{ matrix.installUrl }}' `
+      #       /p:ApplicationVersion="$appVersion" `
+      #       /p:MinimumRequiredVersion="$appVersion" `
+      #       /v:minimal
           
-          Write-Host "Build completed"
-          Start-Sleep -Seconds 5
+      #     Write-Host "Build completed"
+      #     Start-Sleep -Seconds 5
 
-      - name: Obfuscate Assembly
-        shell: powershell
-        run: |
-          $obfuscarPath = "C:\Users\Administrator\AppData\Local\Microsoft\VisualStudio\17.0_6d29ba01\Extensions\lf44xtf1.gdm\files\Obfuscar.Console.exe"
+      # - name: Obfuscate Assembly
+      #   shell: powershell
+      #   run: |
+      #     $obfuscarPath = "C:\Users\Administrator\AppData\Local\Microsoft\VisualStudio\17.0_6d29ba01\Extensions\lf44xtf1.gdm\files\Obfuscar.Console.exe"
     
-          if (-not (Test-Path $obfuscarPath)) {
-            $obfuscarPath = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions" -Recurse -Filter "Obfuscar.Console.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-          }
+      #     if (-not (Test-Path $obfuscarPath)) {
+      #       $obfuscarPath = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions" -Recurse -Filter "Obfuscar.Console.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+      #     }
           
-          if (-not $obfuscarPath) {
-            Write-Error "Obfuscar no encontrado"
-            exit 1
-          }
+      #     if (-not $obfuscarPath) {
+      #       Write-Error "Obfuscar no encontrado"
+      #       exit 1
+      #     }
           
-          Write-Host "Obfuscar found at: $obfuscarPath"
+      #     Write-Host "Obfuscar found at: $obfuscarPath"
     
-          # Definir rutas del proyecto
-          $projectPath = Resolve-Path '${{ matrix.project_path }}'
-          $projectDir = Split-Path $projectPath -Parent
+      #     # Definir rutas del proyecto
+      #     $projectPath = Resolve-Path '${{ matrix.project_path }}'
+      #     $projectDir = Split-Path $projectPath -Parent
           
-          # Usar las mismas rutas que el IDE
-          $inPath = Join-Path $projectDir "bin\Release"
-          $outPath = Join-Path $inPath "Obfuscated"
+      #     # Usar las mismas rutas que el IDE
+      #     $inPath = Join-Path $projectDir "bin\Release"
+      #     $outPath = Join-Path $inPath "Obfuscated"
           
-          Write-Host "Project Dir: $projectDir"
-          Write-Host "InPath: $inPath"
-          Write-Host "OutPath: $outPath"
+      #     Write-Host "Project Dir: $projectDir"
+      #     Write-Host "InPath: $inPath"
+      #     Write-Host "OutPath: $outPath"
           
-          # Verificar que existe el ejecutable en bin\Release
-          $exePath = Join-Path $inPath "AFIFSALESSYSTEM.exe"
-          if (-not (Test-Path $exePath)) {
-            Write-Error "No se encontró AFIFSALESSYSTEM.exe en $inPath"
-            Write-Host "Contenido de bin\Release:"
-            Get-ChildItem $inPath -ErrorAction SilentlyContinue | Select-Object Name | Format-Table
-            exit 1
-          }
+      #     # Verificar que existe el ejecutable en bin\Release
+      #     $exePath = Join-Path $inPath "AFIFSALESSYSTEM.exe"
+      #     if (-not (Test-Path $exePath)) {
+      #       Write-Error "No se encontró AFIFSALESSYSTEM.exe en $inPath"
+      #       Write-Host "Contenido de bin\Release:"
+      #       Get-ChildItem $inPath -ErrorAction SilentlyContinue | Select-Object Name | Format-Table
+      #       exit 1
+      #     }
           
-          Write-Host "Found executable: $exePath"
+      #     Write-Host "Found executable: $exePath"
           
-          # Crear carpeta de salida si no existe
-          if (Test-Path $outPath) {
-            Remove-Item $outPath -Recurse -Force
-          }
-          New-Item -ItemType Directory -Path $outPath -Force | Out-Null
+      #     # Crear carpeta de salida si no existe
+      #     if (Test-Path $outPath) {
+      #       Remove-Item $outPath -Recurse -Force
+      #     }
+      #     New-Item -ItemType Directory -Path $outPath -Force | Out-Null
           
-          # Crear archivo obfuscar.xml (igual que el IDE)
-          $obfuscarConfigDir = Join-Path $projectDir "_Obfuscar"
-          if (-not (Test-Path $obfuscarConfigDir)) {
-            New-Item -ItemType Directory -Path $obfuscarConfigDir -Force | Out-Null
-          }
+      #     # Crear archivo obfuscar.xml (igual que el IDE)
+      #     $obfuscarConfigDir = Join-Path $projectDir "_Obfuscar"
+      #     if (-not (Test-Path $obfuscarConfigDir)) {
+      #       New-Item -ItemType Directory -Path $obfuscarConfigDir -Force | Out-Null
+      #     }
           
-          $obfuscarXmlPath = Join-Path $obfuscarConfigDir "obfuscar.xml"
-          $obfuscarXmlContent = @'
-          <?xml version="1.0" encoding="utf-8"?>
-          <Include>
-            <Var name="RegenerateDebugInfo" value="false" />
-            <Var name="MarkedOnly" value="false" />
-            <Var name="RenameProperties" value="true" />
-            <Var name="RenameEvents" value="true" />
-            <Var name="RenameFields" value="true" />
-            <Var name="KeepPublicApi" value="true" />
-            <Var name="HidePrivateApi" value="true" />
-            <Var name="ReuseNames" value="false" />
-            <Var name="HideStrings" value="true" />
-            <Var name="OptimizeMethods" value="true" />
-            <Var name="SuppressIldasm" value="true" />
-            <Var name="AnalyzeXaml" value="true" />
-            <Var name="UseUnicodeNames" value="false" />
-            <Var name="UseKoreanNames" value="true" />
-            <Module file="$(InPath)\AFIFSALESSYSTEM.exe">
-              <SkipType name="*AnonymousType*" skipProperties="true" skipMethods="true" skipFields="true" skipEvents="true" skipStringHiding="true" />
-            </Module>
-            <AssemblySearchPath path="C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\" />
-          </Include>
-          '@
-          $obfuscarXmlContent | Out-File -FilePath $obfuscarXmlPath -Encoding UTF8 -Force
-          Write-Host "Created obfuscar.xml"
+      #     $obfuscarXmlPath = Join-Path $obfuscarConfigDir "obfuscar.xml"
+      #     $obfuscarXmlContent = @'
+      #     <?xml version="1.0" encoding="utf-8"?>
+      #     <Include>
+      #       <Var name="RegenerateDebugInfo" value="false" />
+      #       <Var name="MarkedOnly" value="false" />
+      #       <Var name="RenameProperties" value="true" />
+      #       <Var name="RenameEvents" value="true" />
+      #       <Var name="RenameFields" value="true" />
+      #       <Var name="KeepPublicApi" value="true" />
+      #       <Var name="HidePrivateApi" value="true" />
+      #       <Var name="ReuseNames" value="false" />
+      #       <Var name="HideStrings" value="true" />
+      #       <Var name="OptimizeMethods" value="true" />
+      #       <Var name="SuppressIldasm" value="true" />
+      #       <Var name="AnalyzeXaml" value="true" />
+      #       <Var name="UseUnicodeNames" value="false" />
+      #       <Var name="UseKoreanNames" value="true" />
+      #       <Module file="$(InPath)\AFIFSALESSYSTEM.exe">
+      #         <SkipType name="*AnonymousType*" skipProperties="true" skipMethods="true" skipFields="true" skipEvents="true" skipStringHiding="true" />
+      #       </Module>
+      #       <AssemblySearchPath path="C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\" />
+      #     </Include>
+      #     '@
+      #     $obfuscarXmlContent | Out-File -FilePath $obfuscarXmlPath -Encoding UTF8 -Force
+      #     Write-Host "Created obfuscar.xml"
           
-          # Crear archivo principal obfuscar_Release_Any CPU.xml
-          $mainConfigPath = Join-Path $projectDir "obfuscar_Release_Any CPU.xml"
-          $mainConfigContent = @"
-          <?xml version="1.0" encoding="utf-8"?>
-          <Obfuscator>
-            <Var name="InPath" value="$inPath" />
-            <Var name="OutPath" value="$outPath" />
-            <Include path="$projectDir\_Obfuscar\obfuscar.xml" />
-          </Obfuscator>
-          "@
-          $mainConfigContent | Out-File -FilePath $mainConfigPath -Encoding UTF8 -Force
-          Write-Host "Created main config: $mainConfigPath"
+      #     # Crear archivo principal obfuscar_Release_Any CPU.xml
+      #     $mainConfigPath = Join-Path $projectDir "obfuscar_Release_Any CPU.xml"
+      #     $mainConfigContent = @"
+      #     <?xml version="1.0" encoding="utf-8"?>
+      #     <Obfuscator>
+      #       <Var name="InPath" value="$inPath" />
+      #       <Var name="OutPath" value="$outPath" />
+      #       <Include path="$projectDir\_Obfuscar\obfuscar.xml" />
+      #     </Obfuscator>
+      #     "@
+      #     $mainConfigContent | Out-File -FilePath $mainConfigPath -Encoding UTF8 -Force
+      #     Write-Host "Created main config: $mainConfigPath"
           
-          # Ejecutar Obfuscar
-          Write-Host "Starting obfuscation..."
-          Write-Host "Command: $obfuscarPath $mainConfigPath"
+      #     # Ejecutar Obfuscar
+      #     Write-Host "Starting obfuscation..."
+      #     Write-Host "Command: $obfuscarPath $mainConfigPath"
           
-          & $obfuscarPath $mainConfigPath
+      #     & $obfuscarPath $mainConfigPath
           
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Obfuscation failed with exit code $LASTEXITCODE"
-            exit 1
-          }
+      #     if ($LASTEXITCODE -ne 0) {
+      #       Write-Error "Obfuscation failed with exit code $LASTEXITCODE"
+      #       exit 1
+      #     }
           
-          Write-Host "Obfuscation completed successfully"
+      #     Write-Host "Obfuscation completed successfully"
           
-          # Verificar archivos ofuscados
-          $obfuscatedExe = Join-Path $outPath "AFIFSALESSYSTEM.exe"
+      #     # Verificar archivos ofuscados
+      #     $obfuscatedExe = Join-Path $outPath "AFIFSALESSYSTEM.exe"
           
-          if (-not (Test-Path $obfuscatedExe)) {
-            Write-Error "Obfuscated file not found at: $obfuscatedExe"
-            Write-Host "Contents of Out folder:"
-            Get-ChildItem $outPath -ErrorAction SilentlyContinue | Select-Object Name, Length | Format-Table
-            exit 1
-          }
+      #     if (-not (Test-Path $obfuscatedExe)) {
+      #       Write-Error "Obfuscated file not found at: $obfuscatedExe"
+      #       Write-Host "Contents of Out folder:"
+      #       Get-ChildItem $outPath -ErrorAction SilentlyContinue | Select-Object Name, Length | Format-Table
+      #       exit 1
+      #     }
           
-          Write-Host "Obfuscated file created: $obfuscatedExe"
+      #     Write-Host "Obfuscated file created: $obfuscatedExe"
           
-          # Reemplazar archivos en bin\Release con versiones ofuscadas
-          $binRelease = Join-Path $projectDir "bin\Release"
+      #     # Reemplazar archivos en bin\Release con versiones ofuscadas
+      #     $binRelease = Join-Path $projectDir "bin\Release"
           
-          Write-Host "Copying obfuscated files to bin\Release..."
+      #     Write-Host "Copying obfuscated files to bin\Release..."
           
-          # Copiar todos los archivos ofuscados
-          Get-ChildItem $outPath | ForEach-Object {
-            $destPath = Join-Path $binRelease $_.Name
+      #     # Copiar todos los archivos ofuscados
+      #     Get-ChildItem $outPath | ForEach-Object {
+      #       $destPath = Join-Path $binRelease $_.Name
             
-            # Reintentar si el archivo está bloqueado
-            for ($i = 1; $i -le 5; $i++) {
-              try {
-                Copy-Item -Path $_.FullName -Destination $destPath -Force -ErrorAction Stop
-                Write-Host "Copied: $($_.Name)"
-                break
-              } catch {
-                if ($i -eq 5) {
-                  Write-Error "Failed to copy $($_.Name) after 5 attempts"
-                  throw
-                }
-                Write-Host "Retry $i/5 for $($_.Name)..."
-                Start-Sleep -Seconds 2
-              }
-            }
-          }
+      #       # Reintentar si el archivo está bloqueado
+      #       for ($i = 1; $i -le 5; $i++) {
+      #         try {
+      #           Copy-Item -Path $_.FullName -Destination $destPath -Force -ErrorAction Stop
+      #           Write-Host "Copied: $($_.Name)"
+      #           break
+      #         } catch {
+      #           if ($i -eq 5) {
+      #             Write-Error "Failed to copy $($_.Name) after 5 attempts"
+      #             throw
+      #           }
+      #           Write-Host "Retry $i/5 for $($_.Name)..."
+      #           Start-Sleep -Seconds 2
+      #         }
+      #       }
+      #     }
           
-          Write-Host "All obfuscated files copied to bin\Release"
+      #     Write-Host "All obfuscated files copied to bin\Release"
           
-          # Mostrar resultado final
-          Write-Host "Final files in bin\Release:"
-          Get-ChildItem $binRelease | Select-Object Name, Length, LastWriteTime | Format-Table
+      #     # Mostrar resultado final
+      #     Write-Host "Final files in bin\Release:"
+      #     Get-ChildItem $binRelease | Select-Object Name, Length, LastWriteTime | Format-Table
 
       - name: Build and Publish ClickOnce
         shell: powershell
