@@ -344,7 +344,7 @@ jobs:
           msbuild '${{ matrix.project_path }}' `
             /t:Publish `
             /p:Configuration='Release' `
-            /p:Platform='Any CPU' `
+            /p:Platform='AnyCPU' `
             /p:PublishDir='${{ matrix.publishDir }}' `
             /p:InstallUrl='${{ matrix.installUrl }}' `
             /p:ApplicationVersion="$appVersion" `
