@@ -183,21 +183,21 @@ jobs:
             exit 1
           }
           
-          Write-Host "✅ Obfuscar found at: $obfuscarPath"
+          Write-Host "Obfuscar found at: $obfuscarPath"
     
-          # 🔹 Definir rutas del proyecto
+          # Definir rutas del proyecto
           $projectPath = Resolve-Path '${{ matrix.project_path }}'
           $projectDir = Split-Path $projectPath -Parent
           
-          # 🔹 Usar las mismas rutas que el IDE
+          # Usar las mismas rutas que el IDE
           $inPath = Join-Path $projectDir "obj\Release"
           $outPath = Join-Path $inPath "Out"
           
-          Write-Host "📁 Project Dir: $projectDir"
-          Write-Host "📁 InPath: $inPath"
-          Write-Host "📁 OutPath: $outPath"
+          Write-Host "Project Dir: $projectDir"
+          Write-Host "InPath: $inPath"
+          Write-Host "OutPath: $outPath"
           
-          # 🔹 Verificar que existe el ejecutable en obj\Release
+          # Verificar que existe el ejecutable en obj\Release
           $exePath = Join-Path $inPath "AFIFSALESSYSTEM.exe"
           if (-not (Test-Path $exePath)) {
             Write-Error "No se encontró AFIFSALESSYSTEM.exe en $inPath"
@@ -206,15 +206,15 @@ jobs:
             exit 1
           }
           
-          Write-Host "✅ Found executable: $exePath"
+          Write-Host "Found executable: $exePath"
           
-          # 🔹 Crear carpeta de salida si no existe
+          # Crear carpeta de salida si no existe
           if (Test-Path $outPath) {
             Remove-Item $outPath -Recurse -Force
           }
           New-Item -ItemType Directory -Path $outPath -Force | Out-Null
           
-          # 🔹 Crear archivo obfuscar.xml (igual que el IDE)
+          # Crear archivo obfuscar.xml (igual que el IDE)
           $obfuscarConfigDir = Join-Path $projectDir "_Obfuscar"
           if (-not (Test-Path $obfuscarConfigDir)) {
             New-Item -ItemType Directory -Path $obfuscarConfigDir -Force | Out-Null
@@ -245,9 +245,9 @@ jobs:
           </Include>
           '@
           $obfuscarXmlContent | Out-File -FilePath $obfuscarXmlPath -Encoding UTF8 -Force
-          Write-Host "✅ Created obfuscar.xml"
+          Write-Host "Created obfuscar.xml"
           
-          # 🔹 Crear archivo principal obfuscar_Release_Any CPU.xml
+          # Crear archivo principal obfuscar_Release_Any CPU.xml
           $mainConfigPath = Join-Path $projectDir "obfuscar_Release_Any CPU.xml"
           $mainConfigContent = @"
           <?xml version="1.0" encoding="utf-8"?>
@@ -258,10 +258,10 @@ jobs:
           </Obfuscator>
           "@
           $mainConfigContent | Out-File -FilePath $mainConfigPath -Encoding UTF8 -Force
-          Write-Host "✅ Created main config: $mainConfigPath"
+          Write-Host "Created main config: $mainConfigPath"
           
-          # 🔹 Ejecutar Obfuscar
-          Write-Host "🔒 Starting obfuscation..."
+          # Ejecutar Obfuscar
+          Write-Host "Starting obfuscation..."
           Write-Host "Command: $obfuscarPath $mainConfigPath"
           
           & $obfuscarPath $mainConfigPath
@@ -271,9 +271,9 @@ jobs:
             exit 1
           }
           
-          Write-Host "✅ Obfuscation completed successfully"
+          Write-Host "Obfuscation completed successfully"
           
-          # 🔹 Verificar archivos ofuscados
+          # Verificar archivos ofuscados
           $obfuscatedExe = Join-Path $outPath "AFIFSALESSYSTEM.exe"
           
           if (-not (Test-Path $obfuscatedExe)) {
@@ -283,12 +283,12 @@ jobs:
             exit 1
           }
           
-          Write-Host "✅ Obfuscated file created: $obfuscatedExe"
+          Write-Host "Obfuscated file created: $obfuscatedExe"
           
-          # 🔹 Reemplazar archivos en bin\Release con versiones ofuscadas
+          # Reemplazar archivos en bin\Release con versiones ofuscadas
           $binRelease = Join-Path $projectDir "bin\Release"
           
-          Write-Host "📦 Copying obfuscated files to bin\Release..."
+          Write-Host "Copying obfuscated files to bin\Release..."
           
           # Copiar todos los archivos ofuscados
           Get-ChildItem $outPath | ForEach-Object {
@@ -298,23 +298,23 @@ jobs:
             for ($i = 1; $i -le 5; $i++) {
               try {
                 Copy-Item -Path $_.FullName -Destination $destPath -Force -ErrorAction Stop
-                Write-Host "  ✅ Copied: $($_.Name)"
+                Write-Host "Copied: $($_.Name)"
                 break
               } catch {
                 if ($i -eq 5) {
                   Write-Error "Failed to copy $($_.Name) after 5 attempts"
                   throw
                 }
-                Write-Host "  ⏳ Retry $i/5 for $($_.Name)..."
+                Write-Host "Retry $i/5 for $($_.Name)..."
                 Start-Sleep -Seconds 2
               }
             }
           }
           
-          Write-Host "✅ All obfuscated files copied to bin\Release"
+          Write-Host "All obfuscated files copied to bin\Release"
           
           # 🔹 Mostrar resultado final
-          Write-Host "`n📊 Final files in bin\Release:"
+          Write-Host "Final files in bin\Release:"
           Get-ChildItem $binRelease | Select-Object Name, Length, LastWriteTime | Format-Table
 
       - name: Build and Publish ClickOnce
