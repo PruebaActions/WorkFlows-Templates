@@ -191,7 +191,7 @@ jobs:
           
           # Usar las mismas rutas que el IDE
           $inPath = Join-Path $projectDir "bin\Release"
-          $outPath = Join-Path $inPath "Out"
+          $outPath = Join-Path $inPath "Obfuscated"
           
           Write-Host "Project Dir: $projectDir"
           Write-Host "InPath: $inPath"
@@ -253,8 +253,8 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <Obfuscator>
             <Var name="InPath" value="bin\Release\" />
-            <Var name="OutPath" value="bin\Release\Out" />
-            <Include path="_Obfuscar\obfuscar.xml" />
+            <Var name="OutPath" value="bin\Release\Obfuscated" />
+            <Include path="$(ProjectDir)\_Obfuscar\obfuscar.xml" />
           </Obfuscator>
           "@
           $mainConfigContent | Out-File -FilePath $mainConfigPath -Encoding UTF8 -Force
@@ -313,7 +313,7 @@ jobs:
           
           Write-Host "All obfuscated files copied to bin\Release"
           
-          # 🔹 Mostrar resultado final
+          # Mostrar resultado final
           Write-Host "Final files in bin\Release:"
           Get-ChildItem $binRelease | Select-Object Name, Length, LastWriteTime | Format-Table
 
