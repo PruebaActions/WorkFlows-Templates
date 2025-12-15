@@ -331,14 +331,11 @@ jobs:
               if ($install -eq "true") {
                 $productName = $package.ProductName
                 if ($productName) {
-                  # Decodificar HTML entities (e.g., %28 -> (, %29 -> ))
-                  $productName = [System.Web.HttpUtility]::HtmlDecode($productName)
                   
-                  # Eliminar arquitectura entre paréntesis: (x86 and x64), (x86), (x64), etc.
-                  $productName = $productName -replace '\s*\([^)]*\)\s*$', ''
-                  
-                  # Limpiar espacios adicionales
-                  $productName = $productName.Trim()
+                  # Eliminar todo desde el primer % hasta el final (quita la arquitectura)
+                  if ($productName -match '(.+?)\s*%') {
+                    $productName = $matches[1].Trim()
+                  }
                   
                   $prerequisites += $productName
                   Write-Host "✅ Prerequisite found: $productName"
