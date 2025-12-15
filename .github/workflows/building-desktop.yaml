@@ -254,7 +254,7 @@ jobs:
           <Obfuscator>
             <Var name="InPath" value="bin\Release\" />
             <Var name="OutPath" value="bin\Release\Obfuscated" />
-            <Include path="$(ProjectDir)\_Obfuscar\obfuscar.xml" />
+            <Include path="$(projectDir)\_Obfuscar\obfuscar.xml" />
           </Obfuscator>
           "@
           $mainConfigContent | Out-File -FilePath $mainConfigPath -Encoding UTF8 -Force
