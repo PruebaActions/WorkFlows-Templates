@@ -331,8 +331,15 @@ jobs:
               if ($install -eq "true") {
                 $productName = $package.ProductName
                 if ($productName) {
-                  # Decodificar HTML entities si existen (e.g., %28 -> (, %29 -> ))
+                  # Decodificar HTML entities (e.g., %28 -> (, %29 -> ))
                   $productName = [System.Web.HttpUtility]::HtmlDecode($productName)
+                  
+                  # Eliminar arquitectura entre paréntesis: (x86 and x64), (x86), (x64), etc.
+                  $productName = $productName -replace '\s*\([^)]*\)\s*$', ''
+                  
+                  # Limpiar espacios adicionales
+                  $productName = $productName.Trim()
+                  
                   $prerequisites += $productName
                   Write-Host "✅ Prerequisite found: $productName"
                 }
@@ -343,13 +350,13 @@ jobs:
           # Si no hay bootstrapper packages, usar el framework como fallback
           if ($prerequisites.Count -eq 0) {
             $frameworkDisplay = switch -Regex ($framework) {
-              "v4.5"   { "Microsoft .NET Framework 4.5 (x86 and x64)" }
-              "v4.5.2" { "Microsoft .NET Framework 4.5.2 (x86 and x64)" }
-              "v4.6"   { "Microsoft .NET Framework 4.6 (x86 and x64)" }
-              "v4.7"   { "Microsoft .NET Framework 4.7 (x86 and x64)" }
-              "v4.7.2" { "Microsoft .NET Framework 4.7.2 (x86 and x64)" }
-              "v4.8"   { "Microsoft .NET Framework 4.8 (x86 and x64)" }
-              default  { "Microsoft .NET Framework (x86 and x64)" }
+              "v4.5"   { "Microsoft .NET Framework 4.5" }
+              "v4.5.2" { "Microsoft .NET Framework 4.5.2" }
+              "v4.6"   { "Microsoft .NET Framework 4.6" }
+              "v4.7"   { "Microsoft .NET Framework 4.7" }
+              "v4.7.2" { "Microsoft .NET Framework 4.7.2" }
+              "v4.8"   { "Microsoft .NET Framework 4.8" }
+              default  { "Microsoft .NET Framework" }
             }
             $prerequisites += $frameworkDisplay
             Write-Host "⚠️ No bootstrapper packages found, using framework: $frameworkDisplay"
