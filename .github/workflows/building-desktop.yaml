@@ -315,7 +315,7 @@ jobs:
           
           # 🔹 Mostrar resultado final
           Write-Host "`n📊 Final files in bin\Release:"
-          Get-ChildItem $binRelease | Select-Object Name, @{Name='Size(KB)';Expression={[math]::Round($_.Length/1KB,2)}}, LastWriteTime | Format-Table -AutoSize
+          Get-ChildItem $binRelease | Select-Object Name, Length, LastWriteTime | Format-Table
 
       - name: Build and Publish ClickOnce
         shell: powershell
