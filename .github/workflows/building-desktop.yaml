@@ -350,10 +350,6 @@ jobs:
             /p:ApplicationVersion="$appVersion" `
             /p:MinimumRequiredVersion="$appVersion" `
             /p:OutputPath='bin\Release' `
-            /p:BuildProject=false `
-            /p:BuildProjectReferences=false `
-            /p:SkipCompilerExecution=true `
-            /p:CopyBuildOutputToOutputDirectory=false `
             /v:minimal 
             # /p:SignManifests=true `
             # /p:ManifestKeyFile= `
