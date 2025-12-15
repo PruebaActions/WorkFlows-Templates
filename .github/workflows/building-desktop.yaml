@@ -59,30 +59,52 @@ jobs:
         shell: powershell
         run: |
           $today = Get-Date -Format "yyyy.MM.dd"
-          $runCounterFile = "$env:GITHUB_WORKSPACE/.run-counter"
+    
+          # 🔹 Obtener el nombre del repositorio
+          $repoName = "${{ github.event.repository.name }}"
+          
+          # 🔹 Ruta persistente con nombre del proyecto
+          $persistentDir = "C:\GitHubActions\PersistentData"
+          $runCounterFile = Join-Path $persistentDir "run-counter-$repoName.txt"
+          
+          # Crear directorio si no existe
+          if (-not (Test-Path $persistentDir)) {
+            New-Item -ItemType Directory -Path $persistentDir -Force | Out-Null
+            Write-Host "✅ Created persistent directory: $persistentDir"
+          }
 
+          Write-Host "📦 Project: $repoName"
+          Write-Host "📁 Counter file: $runCounterFile"
+
+          # Leer el contador anterior
           if (Test-Path $runCounterFile) {
-          $lastLine = Get-Content $runCounterFile | Select-Object -Last 1
-          $parts = $lastLine -split '\.'
-          $lastDate = ($parts[0..2] -join '.')
-          $lastRun = [int]$parts[3]
+            $lastLine = Get-Content $runCounterFile | Select-Object -Last 1
+            Write-Host "📖 Last version found: $lastLine"
+            
+            $parts = $lastLine -split '\.'
+            $lastDate = ($parts[0..2] -join '.')
+            $lastRun = [int]$parts[3]
 
-          if ($lastDate -eq $today) {
-            $runNumber = $lastRun + 1
+            if ($lastDate -eq $today) {
+              $runNumber = $lastRun + 1
+              Write-Host "📅 Same day - incrementing: $lastRun -> $runNumber"
+            } else {
+              $runNumber = 1
+              Write-Host "📅 New day - resetting to 1"
+            }
           } else {
             $runNumber = 1
-          }
-          } else {
-          $runNumber = 1
+            Write-Host "🆕 No previous counter found - starting at 1"
           }
 
           $version = "$today.$runNumber"
-          Write-Host "Generated version: $version"
+          Write-Host "✅ Generated version: $version"
 
-          # Sobrescribe el archivo con la última versión generada
-          $version | Out-File -FilePath $runCounterFile -Encoding UTF8
+          # Guardar el nuevo contador
+          $version | Out-File -FilePath $runCounterFile -Encoding UTF8 -Force
+          Write-Host "💾 Counter saved to: $runCounterFile"
 
-          # Exporta la variable al pipeline
+          # Exportar al pipeline
           echo "appVersion=$version" >> $env:GITHUB_OUTPUT
 
       - name: Replace App.config
