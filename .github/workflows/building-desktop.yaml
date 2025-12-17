@@ -322,7 +322,7 @@ jobs:
         run: |
           #$certPath = Resolve-Path '${{ matrix.cert_path }}'
           #$certPasswordPlain = "${{ secrets.CERT_PASSWORD_SALES }}"
-          #$securePassword = ConvertTo-SecureString $certPasswordPlain -AsPlainText -Force
+          #$securePassword = ConvertTo-SecureString $certPasswordPlain -AsPlainText -Force 
           $appVersion = '${{ steps.version.outputs.appVersion }}'
 
           # Write-Host "Importing certificate from $certPath..."
@@ -338,6 +338,34 @@ jobs:
           # Write-Host "Thumbprint: $thumbprint"
 
           Start-Sleep -Seconds 5
+
+          $projectPath = '${{ matrix.project_path }}'
+          $projectDir  = Split-Path $projectPath -Parent
+
+          Write-Host "=== STEP 1: Build Release ==="
+          msbuild $projectPath `
+            /t:Build `
+            /p:Configuration=Release `
+            /p:Platform=AnyCPU `
+            /v:minimal
+
+          Write-Host "=== STEP 2: Obfuscate ==="
+          $obfuscarExe  = Join-Path $projectDir '_Obfuscar\Obfuscar.Console.exe'
+          $obfuscarCfg  = Join-Path $projectDir '_Obfuscar\obfuscar_Release_Any_CPU.xml'
+          $obfOutExe    = Join-Path $projectDir 'obj\Release\Out\AFIFSALESSYSTEM.exe'
+          $binExe       = Join-Path $projectDir 'bin\Release\AFIFSALESSYSTEM.exe'
+
+          if (!(Test-Path $obfuscarExe)) { throw "Obfuscar.Console.exe not found" }
+          if (!(Test-Path $obfuscarCfg)) { throw "Obfuscar config not found" }
+
+          & $obfuscarExe $obfuscarCfg
+          if ($LASTEXITCODE -ne 0) { throw "Obfuscation failed" }
+
+          if (!(Test-Path $obfOutExe)) { throw "Obfuscated EXE not generated" }
+
+          Write-Host "Replacing original EXE with obfuscated version"
+          Copy-Item $obfOutExe $binExe -Force
+
 
           Write-Host "Building ClickOnce package with version $appVersion"
 
