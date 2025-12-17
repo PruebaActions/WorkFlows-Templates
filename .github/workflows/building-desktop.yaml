@@ -339,7 +339,7 @@ jobs:
 
           Start-Sleep -Seconds 5
 
-          $projectPath = '${{ matrix.project_path }}'
+          $projectPath = './AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj'
           $projectDir  = Split-Path $projectPath -Parent
 
           Write-Host "=== STEP 1: Build Release ==="
@@ -349,26 +349,26 @@ jobs:
             /p:Platform=AnyCPU `
             /v:minimal
 
-          $projectPath = '${{ matrix.project_path }}'
-          $projectDir  = Split-Path $projectPath -Parent
-
-          $obfuscarExe = Join-Path $projectDir '_Obfuscar\Obfuscar.Console.exe'
-          $obfuscarCfg = '_Obfuscar\obfuscar_Release_Any_CPU.xml'  # RELATIVO A projectDir
-          $obfOutExe   = Join-Path $projectDir 'obj\Release\Out\AFIFSALESSYSTEM.exe'
-          $binExe      = Join-Path $projectDir 'bin\Release\AFIFSALESSYSTEM.exe'
-
-          if (!(Test-Path $obfuscarExe)) { throw "Obfuscar.Console.exe not found" }
+          Write-Host "=== STEP 2: Obfuscate ==="
 
           Push-Location $projectDir
+
+          $obfuscarExe = '.\_Obfuscar\Obfuscar.Console.exe'
+          $obfuscarCfg = '.\_Obfuscar\obfuscar_Release_Any_CPU.xml'
+          $obfOutExe   = '.\obj\Release\Out\AFIFSALESSYSTEM.exe'
+          $binExe      = '.\bin\Release\AFIFSALESSYSTEM.exe'
+
+          if (!(Test-Path $obfuscarExe)) { throw "Obfuscar.Console.exe not found" }
 
           & $obfuscarExe $obfuscarCfg
           if ($LASTEXITCODE -ne 0) { throw "Obfuscation failed" }
 
-          Pop-Location
-
           if (!(Test-Path $obfOutExe)) { throw "Obfuscated EXE not generated" }
 
           Copy-Item $obfOutExe $binExe -Force
+
+          Pop-Location
+
 
 
           Write-Host "Building ClickOnce package with version $appVersion"
