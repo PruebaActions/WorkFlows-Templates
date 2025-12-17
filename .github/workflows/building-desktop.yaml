@@ -342,34 +342,32 @@ jobs:
           $projectPath = './AFIFSALESSYSTEM/AFIFSALESSYSTEM.csproj'
           $projectDir  = Split-Path $projectPath -Parent
 
-          Write-Host "=== STEP 1: Build Release ==="
-          msbuild $projectPath `
-            /t:Build `
-            /p:Configuration=Release `
-            /p:Platform=AnyCPU `
-            /v:minimal
+          # Write-Host "=== STEP 1: Build Release ==="
+          # msbuild $projectPath `
+          #   /t:Build `
+          #   /p:Configuration=Release `
+          #   /p:Platform=AnyCPU `
+          #   /v:minimal
 
-          Write-Host "=== STEP 2: Obfuscate ==="
+          # Write-Host "=== STEP 2: Obfuscate ==="
 
-          Push-Location $projectDir
+          # Push-Location $projectDir
 
-          $obfuscarExe = '.\_Obfuscar\Obfuscar.Console.exe'
-          $obfuscarCfg = '.\_Obfuscar\obfuscar_Release_Any_CPU.xml'
-          $obfOutExe   = '.\obj\Release\Out\AFIFSALESSYSTEM.exe'
-          $binExe      = '.\bin\Release\AFIFSALESSYSTEM.exe'
+          # $obfuscarExe = '.\_Obfuscar\Obfuscar.Console.exe'
+          # $obfuscarCfg = '.\_Obfuscar\obfuscar_Release_Any_CPU.xml'
+          # $obfOutExe   = '.\obj\Release\Out\AFIFSALESSYSTEM.exe'
+          # $binExe      = '.\bin\Release\AFIFSALESSYSTEM.exe'
 
-          if (!(Test-Path $obfuscarExe)) { throw "Obfuscar.Console.exe not found" }
+          # if (!(Test-Path $obfuscarExe)) { throw "Obfuscar.Console.exe not found" }
 
-          & $obfuscarExe $obfuscarCfg
-          if ($LASTEXITCODE -ne 0) { throw "Obfuscation failed" }
+          # & $obfuscarExe $obfuscarCfg
+          # if ($LASTEXITCODE -ne 0) { throw "Obfuscation failed" }
 
-          if (!(Test-Path $obfOutExe)) { throw "Obfuscated EXE not generated" }
+          # if (!(Test-Path $obfOutExe)) { throw "Obfuscated EXE not generated" }
 
-          Copy-Item $obfOutExe $binExe -Force
+          # Copy-Item $obfOutExe $binExe -Force
 
-          Pop-Location
-
-
+          # Pop-Location
 
           Write-Host "Building ClickOnce package with version $appVersion"
 
