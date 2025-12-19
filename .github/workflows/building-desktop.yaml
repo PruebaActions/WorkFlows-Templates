@@ -726,6 +726,7 @@ jobs:
 
   combine_matrix:
     name: "🧩 Combine Matrix"
+    needs: build_clickonce
     runs-on: ubuntu-latest
     outputs:
       matrix_json: ${{ steps.combine.outputs.matrix_json }}
