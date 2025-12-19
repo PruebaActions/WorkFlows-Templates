@@ -724,133 +724,133 @@ jobs:
   #       with:
   #         deploy_target_path: ${{ matrix.deploy_target_path }}
 
-  # combine_matrix:
-  #   name: "🧩 Combine Matrix"
-  #   runs-on: ubuntu-latest
-  #   outputs:
-  #     matrix_json: ${{ steps.combine.outputs.matrix_json }}
-  #   steps:
-  #     - name: Combine runners and projects preserving order
-  #       id: combine
-  #       shell: pwsh
-  #       run: |
-  #         Write-Host "🔄 Combining runners and projects (preserving order)..."
+  combine_matrix:
+    name: "🧩 Combine Matrix"
+    runs-on: ubuntu-latest
+    outputs:
+      matrix_json: ${{ steps.combine.outputs.matrix_json }}
+    steps:
+      - name: Combine runners and projects preserving order
+        id: combine
+        shell: pwsh
+        run: |
+          Write-Host "🔄 Combining runners and projects (preserving order)..."
 
-  #         # Leer los JSONs exactamente como los pasa el pipeline consumidor
-  #         $projects = (ConvertFrom-Json @'
-  #         ${{ inputs.projects_json }}
-  #         '@).include
-  #         $runners = (ConvertFrom-Json @'
-  #         ${{ inputs.runner_tag }}
-  #         '@).include
+          # Leer los JSONs exactamente como los pasa el pipeline consumidor
+          $projects = (ConvertFrom-Json @'
+          ${{ inputs.projects_json }}
+          '@).include
+          $runners = (ConvertFrom-Json @'
+          ${{ inputs.runner_tag }}
+          '@).include
 
-  #         $combined = @()
-  #         $runnerIndex = 0
-  #         foreach ($runner in $runners) {
-  #           $projectIndex = 0
-  #           foreach ($proj in $projects) {
-  #             $combined += [ordered]@{
-  #               order        = "$runnerIndex-$projectIndex"
-  #               runner_index = $runnerIndex
-  #               project_index = $projectIndex
-  #               project      = $proj
-  #               runner       = $runner
-  #             }
-  #             $projectIndex++
-  #           }
-  #           $runnerIndex++
-  #         }
+          $combined = @()
+          $runnerIndex = 0
+          foreach ($runner in $runners) {
+            $projectIndex = 0
+            foreach ($proj in $projects) {
+              $combined += [ordered]@{
+                order        = "$runnerIndex-$projectIndex"
+                runner_index = $runnerIndex
+                project_index = $projectIndex
+                project      = $proj
+                runner       = $runner
+              }
+              $projectIndex++
+            }
+            $runnerIndex++
+          }
 
-  #         # Mantener el orden en la salida
-  #         $combined = $combined | Sort-Object order
+          # Mantener el orden en la salida
+          $combined = $combined | Sort-Object order
 
-  #         $json = $combined | ConvertTo-Json -Compress -Depth 10
-  #         echo "matrix_json=$json" >> $env:GITHUB_OUTPUT
+          $json = $combined | ConvertTo-Json -Compress -Depth 10
+          echo "matrix_json=$json" >> $env:GITHUB_OUTPUT
 
-  #         Write-Host "✅ Ordered combined matrix:"
-  #         Write-Host $json
+          Write-Host "✅ Ordered combined matrix:"
+          Write-Host $json
 
-  # deploy_installers:
-  #   name: "🚀 Deploy Installers"
-  #   needs: combine_matrix
-  #   strategy:
-  #     matrix:
-  #       include: ${{ fromJson(needs.combine_matrix.outputs.matrix_json) }}
-  #     max-parallel: 1
-  #   runs-on: ${{ matrix.runner.labels[*] }}
+  deploy_installers:
+    name: "🚀 Deploy Installers"
+    needs: combine_matrix
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.combine_matrix.outputs.matrix_json) }}
+      max-parallel: 1
+    runs-on: ${{ matrix.runner.labels[*] }}
 
-  #   steps:    
-  #   - uses: actions/checkout@v4
+    steps:    
+    - uses: actions/checkout@v4
 
-  #   - name: Debug - Show all variables
-  #     shell: powershell
-  #     run: |
-  #       Write-Host "Runner index: ${{ matrix.runner_index }}"
-  #       Write-Host "Project index: ${{ matrix.project_index }}"
-  #       Write-Host "Runner labels: ${{ matrix.runner.labels }}"
-  #       Write-Host "Project name: ${{ matrix.project.project_name }}"
-  #       Write-Host "Target path: ${{ matrix.project.deploy_target_path }}"
+    - name: Debug - Show all variables
+      shell: powershell
+      run: |
+        Write-Host "Runner index: ${{ matrix.runner_index }}"
+        Write-Host "Project index: ${{ matrix.project_index }}"
+        Write-Host "Runner labels: ${{ matrix.runner.labels }}"
+        Write-Host "Project name: ${{ matrix.project.project_name }}"
+        Write-Host "Target path: ${{ matrix.project.deploy_target_path }}"
 
-  #   - name: "Debug - Show all variables"
-  #     shell: powershell
-  #     run: |
-  #       Write-Host "=========================================="
-  #       Write-Host "           DEPLOYMENT VARIABLES          "
-  #       Write-Host "=========================================="
-  #       Write-Host ""
+    - name: "Debug - Show all variables"
+      shell: powershell
+      run: |
+        Write-Host "=========================================="
+        Write-Host "           DEPLOYMENT VARIABLES          "
+        Write-Host "=========================================="
+        Write-Host ""
         
-  #       Write-Host "📦 PROJECT INFORMATION:"
-  #       Write-Host "  Project Name:        ${{ matrix.project.project_name }}"
-  #       Write-Host "  Artifact Name:       ${{ matrix.project.artifact_name }}"
-  #       Write-Host ""
+        Write-Host "📦 PROJECT INFORMATION:"
+        Write-Host "  Project Name:        ${{ matrix.project.project_name }}"
+        Write-Host "  Artifact Name:       ${{ matrix.project.artifact_name }}"
+        Write-Host ""
         
-  #       Write-Host "📂 PATHS:"
-  #       Write-Host "  GitHub Workspace:    ${{ github.workspace }}"
-  #       Write-Host "  Publish Path:        ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}"
-  #       Write-Host "  Destination Path:    ${{ matrix.project.deploy_target_path }}"
-  #       Write-Host ""
+        Write-Host "📂 PATHS:"
+        Write-Host "  GitHub Workspace:    ${{ github.workspace }}"
+        Write-Host "  Publish Path:        ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}"
+        Write-Host "  Destination Path:    ${{ matrix.project.deploy_target_path }}"
+        Write-Host ""
         
-  #       Write-Host "⚙️ CONFIGURATION:"
-  #       Write-Host "  Skip Items JSON:     ${{ inputs.skip_items_json }}"
-  #       Write-Host ""
+        Write-Host "⚙️ CONFIGURATION:"
+        Write-Host "  Skip Items JSON:     ${{ inputs.skip_items_json }}"
+        Write-Host ""
         
-  #       Write-Host "🔍 GITHUB CONTEXT:"
-  #       Write-Host "  Repository:          ${{ github.repository }}"
-  #       Write-Host "  Branch:              ${{ github.ref_name }}"
-  #       Write-Host "  Commit SHA:          ${{ github.sha }}"
-  #       Write-Host "  Actor:               ${{ github.actor }}"
-  #       Write-Host "  Run Number:          ${{ github.run_number }}"
-  #       Write-Host ""
+        Write-Host "🔍 GITHUB CONTEXT:"
+        Write-Host "  Repository:          ${{ github.repository }}"
+        Write-Host "  Branch:              ${{ github.ref_name }}"
+        Write-Host "  Commit SHA:          ${{ github.sha }}"
+        Write-Host "  Actor:               ${{ github.actor }}"
+        Write-Host "  Run Number:          ${{ github.run_number }}"
+        Write-Host ""
         
-  #       Write-Host "=========================================="
-  #       Write-Host ""
+        Write-Host "=========================================="
+        Write-Host ""
         
-  #       # Verificar que los directorios existen
-  #       Write-Host "📋 VERIFICATION:"
+        # Verificar que los directorios existen
+        Write-Host "📋 VERIFICATION:"
         
-  #       $artifactPath = "${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}"
-  #       if (Test-Path $artifactPath) {
-  #         Write-Host "  ✅ Artifact path exists: $artifactPath"
-  #         Write-Host "  Files in artifact:"
-  #         Get-ChildItem $artifactPath -Recurse | Select-Object -First 10 | ForEach-Object {
-  #           Write-Host "     - $($_.Name)"
-  #         }
-  #       } else {
-  #         Write-Host "  ❌ Artifact path NOT found: $artifactPath"
-  #       }
+        $artifactPath = "${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}"
+        if (Test-Path $artifactPath) {
+          Write-Host "  ✅ Artifact path exists: $artifactPath"
+          Write-Host "  Files in artifact:"
+          Get-ChildItem $artifactPath -Recurse | Select-Object -First 10 | ForEach-Object {
+            Write-Host "     - $($_.Name)"
+          }
+        } else {
+          Write-Host "  ❌ Artifact path NOT found: $artifactPath"
+        }
         
-  #       Write-Host ""
+        Write-Host ""
         
-  #       $destPath = "${{ matrix.project.deploy_target_path }}"
-  #       if (Test-Path $destPath) {
-  #         Write-Host "  ✅ Destination path exists: $destPath"
-  #       } else {
-  #         Write-Host "  ⚠️  Destination path does NOT exist: $destPath"
-  #         Write-Host "     (Will be created during deployment)"
-  #       }
+        $destPath = "${{ matrix.project.deploy_target_path }}"
+        if (Test-Path $destPath) {
+          Write-Host "  ✅ Destination path exists: $destPath"
+        } else {
+          Write-Host "  ⚠️  Destination path does NOT exist: $destPath"
+          Write-Host "     (Will be created during deployment)"
+        }
         
-  #       Write-Host ""
-  #       Write-Host "=========================================="
+        Write-Host ""
+        Write-Host "=========================================="
 
     # steps:
     #   - uses: actions/checkout@v4
