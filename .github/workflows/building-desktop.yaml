@@ -663,53 +663,53 @@ jobs:
           Write-Host "MSI successfully built. Contents:"
           Get-ChildItem -Path $outputDir -Filter *.msi -Recurse | Select-Object FullName
             
-  #     - name: Upload ClickOnce artifact
-  #       uses: actions/upload-artifact@v4
-  #       env:
-  #         NODE_TLS_REJECT_UNAUTHORIZED: '0'
-  #       with:
-  #         name: ClickOnce-Package
-  #         path: |
-  #           ${{ matrix.publishDir }}/**
-  #         if-no-files-found: error
+      - name: Upload ClickOnce artifact
+        uses: actions/upload-artifact@v4
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: ClickOnce-Package
+          path: |
+            ${{ matrix.publishDir }}/**
+          if-no-files-found: error
 
       
-  #     - name: Navegando MSI installer path
-  #       shell: powershell
-  #       id: find_msi
-  #       run: |
-  #         # Derivar carpeta base del proyecto MSI
-  #         $msiProjectPath = "${{ matrix.msi_project_path }}"
-  #         $msiDir = Split-Path $msiProjectPath -Parent
-  #         $releaseDir = Join-Path $msiDir "Release"
+      - name: Navegando MSI installer path
+        shell: powershell
+        id: find_msi
+        run: |
+          # Derivar carpeta base del proyecto MSI
+          $msiProjectPath = "${{ matrix.msi_project_path }}"
+          $msiDir = Split-Path $msiProjectPath -Parent
+          $releaseDir = Join-Path $msiDir "Release"
 
-  #         Write-Host "Searching for MSI files in: $releaseDir"
+          Write-Host "Searching for MSI files in: $releaseDir"
 
-  #         if (-not (Test-Path $releaseDir)) {
-  #           Write-Error "Release directory not found: $releaseDir"
-  #           exit 1
-  #         }
+          if (-not (Test-Path $releaseDir)) {
+            Write-Error "Release directory not found: $releaseDir"
+            exit 1
+          }
 
-  #         $msiFiles = Get-ChildItem -Path $releaseDir -Filter *.msi -Recurse
-  #         if (-not $msiFiles) {
-  #           Write-Error "No MSI files found in $releaseDir"
-  #           exit 1
-  #         }
+          $msiFiles = Get-ChildItem -Path $releaseDir -Filter *.msi -Recurse
+          if (-not $msiFiles) {
+            Write-Error "No MSI files found in $releaseDir"
+            exit 1
+          }
 
-  #         Write-Host "Found the following MSI files:"
-  #         $msiFiles | ForEach-Object { Write-Host " - $($_.FullName)" }
+          Write-Host "Found the following MSI files:"
+          $msiFiles | ForEach-Object { Write-Host " - $($_.FullName)" }
 
-  #         echo "releaseDir=$releaseDir" >> $env:GITHUB_OUTPUT
+          echo "releaseDir=$releaseDir" >> $env:GITHUB_OUTPUT
 
-  #     - name: Upload MSI artifact
-  #       uses: actions/upload-artifact@v4
-  #       env:
-  #         NODE_TLS_REJECT_UNAUTHORIZED: '0'
-  #       with:
-  #         name: MSI-Installer
-  #         path: |
-  #           ${{ steps.find_msi.outputs.releaseDir }}/*.msi
-  #         if-no-files-found: error
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+        with:
+          name: MSI-Installer
+          path: |
+            ${{ steps.find_msi.outputs.releaseDir }}/*.msi
+          if-no-files-found: error
 
   # backup_installers:
   #   name: "🗂️ Backup Installers"
@@ -782,6 +782,23 @@ jobs:
     steps:    
     - uses: actions/checkout@v4
 
+    - name: "Downloading artifacts"
+      uses: actions/download-artifact@v4
+      env:
+        NODE_TLS_REJECT_UNAUTHORIZED: '0'
+      with:
+        name: ${{ matrix.project.artifact_name }}
+        path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
+
+    - name: "Deploy to IIS"
+      uses: PruebaActions/WorkFlows-Templates/.github/actions/deploy-to-iis@main
+      with:
+        project_name: ${{ matrix.project.project_name }}
+        publish_path: ${{ github.workspace }}/artifact/${{ matrix.project.artifact_name }}
+        destination_path: ${{ matrix.project.deploy_target_path }}
+        skip_items_json: ${{ inputs.skip_items_json }}
+    
+    
     - name: Debug - Show all variables
       shell: powershell
       run: |
