@@ -133,7 +133,7 @@ jobs:
   codeql-analysis:
     runs-on:
       group: DAST
-    needs: docker-set-up
+    # needs: docker-set-up
     permissions:
       actions: read
       contents: read
