@@ -145,7 +145,7 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ inputs.codeql_languages }} 
-          queries: security-and-quality
+          queries: security
         env:
           NODE_TLS_REJECT_UNAUTHORIZED: '0'
           CODEQL_ACTION_SKIP_TOOLCACHE: true
