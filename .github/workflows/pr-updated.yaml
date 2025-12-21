@@ -152,7 +152,7 @@ jobs:
 
       #  🪄 Llamar composite si el autobuild falla
       - name: Manual build fallback
-        if: ${{ steps.autobuild.outcome == 'failure' }}
+        #if: ${{ steps.autobuild.outcome == 'failure' }}
         uses: PruebaActions/WorkFlows-Templates/.github/actions/manual-build-fallback@main
         with:
           solution_path: ${{ inputs.solution_path_codeql }}
