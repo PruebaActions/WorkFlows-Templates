@@ -5,19 +5,19 @@ on:
     inputs:
           project_paths:
               description: "Lista JSON de proyectos a compilar (path, isFramework y language)"
-              required: true
+              required: false
               type: string
           test_paths:
               description: "Lista JSON de proyectos de test (path, isFramework, lenguaje). Solo incluir proyectos .csproj de tests"
-              required: true
+              required: false
               type: string
           docker_targets:
               description: "Lista JSON de targets Docker (image_name, container_name, dockerfile, host_port, container_port, isFramework,is_api, api_doc_path)"
-              required: true
+              required: false
               type: string
           codeql_languages: 
               description: "Lista de lenguajes soportados por CodeQL (Separados por coma)"
-              required: true
+              required: false
               type: string
           solution_path_codeql:
               description: "Ruta al archivo .sln principal para CodeQL Manual Build Fallback"
@@ -31,104 +31,104 @@ on:
         
 jobs:
   #Detectar si alguna app usa .NET Framework
-  detect-framework:
-    runs-on:
-      group: DAST
-    outputs:
-      hasFramework: ${{ steps.check.outputs.hasFramework }}
-    steps:
-      - name: Check if any app requires Windows containers
-        id: check
-        shell: powershell
-        run: |
-          $targets = '${{ inputs.docker_targets }}' | ConvertFrom-Json
-          $frameworkExists = $targets | Where-Object { $_.isFramework -eq "true" }
-          if ($frameworkExists) {
-            Write-Host "At least one .NET Framework app found."
-            echo "hasFramework=true" >> $env:GITHUB_OUTPUT
-          } else {
-            echo "hasFramework=false" >> $env:GITHUB_OUTPUT
-          }
+  # detect-framework:
+  #   runs-on:
+  #     group: DAST
+  #   outputs:
+  #     hasFramework: ${{ steps.check.outputs.hasFramework }}
+  #   steps:
+  #     - name: Check if any app requires Windows containers
+  #       id: check
+  #       shell: powershell
+  #       run: |
+  #         $targets = '${{ inputs.docker_targets }}' | ConvertFrom-Json
+  #         $frameworkExists = $targets | Where-Object { $_.isFramework -eq "true" }
+  #         if ($frameworkExists) {
+  #           Write-Host "At least one .NET Framework app found."
+  #           echo "hasFramework=true" >> $env:GITHUB_OUTPUT
+  #         } else {
+  #           echo "hasFramework=false" >> $env:GITHUB_OUTPUT
+  #         }
 
-  build-projects:
-    runs-on:
-      group: DAST
-    needs: detect-framework
-    strategy:
-      matrix:
-        project: ${{ fromJSON(inputs.project_paths) }}
-    steps:
-      - uses: actions/checkout@v4
+  # build-projects:
+  #   runs-on:
+  #     group: DAST
+  #   needs: detect-framework
+  #   strategy:
+  #     matrix:
+  #       project: ${{ fromJSON(inputs.project_paths) }}
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Build Vue.js project
-        if: ${{ matrix.project.language == 'javascript' }}
-        uses:  PruebaActions/WorkFlows-Templates/.github/actions/build-vue@main
-        with:
-          project_path: ${{ matrix.project.path }}
+  #     - name: Build Vue.js project
+  #       if: ${{ matrix.project.language == 'javascript' }}
+  #       uses:  PruebaActions/WorkFlows-Templates/.github/actions/build-vue@main
+  #       with:
+  #         project_path: ${{ matrix.project.path }}
 
-      - name: Build .NET Framework app
-        if: ${{ matrix.project.language == 'csharp' && matrix.project.isFramework == 'true' }}
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
-        with:
-          solution_path: ${{ matrix.project.path }}
-          isTest: false
+  #     - name: Build .NET Framework app
+  #       if: ${{ matrix.project.language == 'csharp' && matrix.project.isFramework == 'true' }}
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
+  #       with:
+  #         solution_path: ${{ matrix.project.path }}
+  #         isTest: false
 
-      - name: Build .NET Core o superior
-        if: ${{ matrix.project.language == 'csharp' && matrix.project.isFramework == 'false' }}
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
-        with:
-          project_path: ${{ matrix.project.path }}
-          isTest: false
+  #     - name: Build .NET Core o superior
+  #       if: ${{ matrix.project.language == 'csharp' && matrix.project.isFramework == 'false' }}
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
+  #       with:
+  #         project_path: ${{ matrix.project.path }}
+  #         isTest: false
 
-  run-tests:
-    runs-on:
-      group: DAST
-    needs: build-projects
-    if: ${{ inputs.test_paths != '[]' }}
-    strategy:
-      matrix:
-        test: ${{ fromJSON(inputs.test_paths) }}
-    steps:
-      - uses: actions/checkout@v4
+  # run-tests:
+  #   runs-on:
+  #     group: DAST
+  #   needs: build-projects
+  #   if: ${{ inputs.test_paths != '[]' }}
+  #   strategy:
+  #     matrix:
+  #       test: ${{ fromJSON(inputs.test_paths) }}
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Run .NET Framework tests
-        if: ${{ matrix.test.language == 'csharp' && matrix.test.isFramework == 'true' }}
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
-        with:
-          solution_path: ${{ matrix.test.path }}
-          isTest: true
+  #     - name: Run .NET Framework tests
+  #       if: ${{ matrix.test.language == 'csharp' && matrix.test.isFramework == 'true' }}
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test-dotnet-framework@main
+  #       with:
+  #         solution_path: ${{ matrix.test.path }}
+  #         isTest: true
 
-      - name: Run .NET Core o superior tests
-        if: ${{ matrix.test.language == 'csharp' && matrix.test.isFramework == 'false' }}
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
-        with:
-          project_path: ${{ matrix.test.path }}
-          isTest: true
+  #     - name: Run .NET Core o superior tests
+  #       if: ${{ matrix.test.language == 'csharp' && matrix.test.isFramework == 'false' }}
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/build-and-test@main
+  #       with:
+  #         project_path: ${{ matrix.test.path }}
+  #         isTest: true
 
-  #Build and Run App en Docker
-  docker-set-up:
-    runs-on:
-      group: DAST
-    needs: [detect-framework, build-projects]
-    strategy:
-      matrix:
-        target: ${{ fromJSON(inputs.docker_targets) }}
-    steps:
-      - uses: actions/checkout@v4
+  # #Build and Run App en Docker
+  # docker-set-up:
+  #   runs-on:
+  #     group: DAST
+  #   needs: [detect-framework, build-projects]
+  #   strategy:
+  #     matrix:
+  #       target: ${{ fromJSON(inputs.docker_targets) }}
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Switch Docker Engine if needed
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
-        with:
-          isFramework: ${{ needs.detect-framework.outputs.hasFramework}}
+  #     - name: Switch Docker Engine if needed
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/switch-docker-engine@main
+  #       with:
+  #         isFramework: ${{ needs.detect-framework.outputs.hasFramework}}
 
-      - name: Build & Run Docker
-        uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
-        with:
-          image_name: ${{ matrix.target.image_name}}
-          container_name: ${{ matrix.target.container_name}}
-          dockerfile: ${{ matrix.target.dockerfile}}
-          host_port: ${{ matrix.target.host_port}}
-          container_port: ${{ matrix.target.container_port}}
+  #     - name: Build & Run Docker
+  #       uses: PruebaActions/WorkFlows-Templates/.github/actions/docker-set-up@main
+  #       with:
+  #         image_name: ${{ matrix.target.image_name}}
+  #         container_name: ${{ matrix.target.container_name}}
+  #         dockerfile: ${{ matrix.target.dockerfile}}
+  #         host_port: ${{ matrix.target.host_port}}
+  #         container_port: ${{ matrix.target.container_port}}
 
   codeql-analysis:
     runs-on:
@@ -148,14 +148,7 @@ jobs:
           queries: security-and-quality
         env:
           NODE_TLS_REJECT_UNAUTHORIZED: '0'
-
-      # 🧠 Intentar autobuild
-      - name: CodeQL Autobuild
-        id: autobuild
-        uses: github/codeql-action/autobuild@v3
-        env:
-          NODE_TLS_REJECT_UNAUTHORIZED: '0'
-        continue-on-error: true
+          CODEQL_ACTION_SKIP_TOOLCACHE: true
 
       #  🪄 Llamar composite si el autobuild falla
       - name: Manual build fallback
